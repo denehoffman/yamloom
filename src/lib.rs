@@ -1,8 +1,10 @@
+use std::fmt::Display;
+
 use hashlink::LinkedHashMap;
 use pyo3::{
     exceptions::{PyRuntimeError, PyValueError},
     prelude::*,
-    types::{PyBool, PyDict, PyDictMethods, PyFloat, PyInt, PyList, PyString},
+    types::{PyDict, PyDictMethods},
 };
 use yaml_rust2::{
     yaml::{Array, Hash},
@@ -235,53 +237,6 @@ where
         Ok(self.as_yaml())
     }
 }
-
-impl TryYamlable for Bound<'_, PyAny> {
-    fn try_as_yaml(&self) -> PyResult<Yaml> {
-        if self.is_none() {
-            Ok(Yaml::Null)
-        } else if self.is_instance_of::<PyBool>() {
-            Ok(self.extract::<bool>()?.as_yaml())
-        } else if self.is_instance_of::<PyInt>() {
-            Ok(self.extract::<i64>()?.as_yaml())
-        } else if self.is_instance_of::<PyFloat>() {
-            Ok(self.extract::<f64>()?.as_yaml())
-        } else if self.is_instance_of::<PyString>() {
-            Ok(self.extract::<String>()?.as_yaml())
-        } else if let Ok(list) = self.cast::<PyList>() {
-            Ok(Yaml::Array(list.try_as_array()?))
-        } else if let Ok(dict) = self.cast::<PyDict>() {
-            Ok(Yaml::Hash(dict.try_as_hash()?))
-        } else {
-            Err(PyValueError::new_err("Invalid value"))
-        }
-    }
-}
-
-impl TryHash for Bound<'_, PyDict> {
-    fn try_as_hash(&self) -> PyResult<Hash> {
-        let mut dict_internals = Hash::new();
-        for (key, entry) in self.iter() {
-            if let Ok(key) = key.extract::<String>() {
-                dict_internals.insert_yaml(key, entry.try_as_yaml()?)
-            } else {
-                return Err(PyValueError::new_err("Invalid key"));
-            }
-        }
-        Ok(dict_internals)
-    }
-}
-
-impl TryArray for Bound<'_, PyList> {
-    fn try_as_array(&self) -> PyResult<Vec<Yaml>> {
-        let mut list_internals = Vec::new();
-        for entry in self.iter() {
-            list_internals.push(entry.try_as_yaml()?)
-        }
-        Ok(list_internals)
-    }
-}
-
 pub trait InsertYaml {
     fn insert_yaml(&mut self, key: impl Yamlable, value: impl Yamlable);
     fn insert_yaml_opt(&mut self, key: impl Yamlable, value: impl IntoYamlOption);
@@ -359,6 +314,18 @@ where
         }
     }
 }
+impl<A, B> Display for Either<A, B>
+where
+    A: Display,
+    B: Display,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Either::A(a) => write!(f, "{a}"),
+            Either::B(b) => write!(f, "{b}"),
+        }
+    }
+}
 impl<'a, 'py, A, B> FromPyObject<'a, 'py> for Either<A, B>
 where
     A: FromPyObject<'a, 'py>,
@@ -373,6 +340,18 @@ where
             Ok(Self::B(b))
         } else {
             Err(PyValueError::new_err("Invalid value"))
+        }
+    }
+}
+impl<A, B> Yamlable for Either<A, B>
+where
+    for<'a> &'a A: Yamlable,
+    for<'b> &'b B: Yamlable,
+{
+    fn as_yaml(&self) -> Yaml {
+        match self {
+            Either::A(a) => a.as_yaml(),
+            Either::B(b) => b.as_yaml(),
         }
     }
 }
@@ -398,7 +377,7 @@ mod lupo {
     use pyo3::{
         exceptions::PyValueError,
         prelude::*,
-        types::{PyDict, PyList},
+        types::{PyBool, PyDict, PyFloat, PyInt, PyList, PyString},
     };
     use yaml_rust2::{
         yaml::{Array, Hash},
@@ -406,13 +385,14 @@ mod lupo {
     };
 
     use crate::{
-        lupo::expressions::StringExpression, BoolOrString, Either, InsertYaml, MaybeYamlable,
-        PushYaml, PyMap, TryHash, TryYamlable, Yamlable,
+        lupo::expressions::{BooleanExpression, NumberExpression, StringExpression},
+        Either, InsertYaml, MaybeYamlable, PushYaml, PyMap, TryArray, TryHash, TryYamlable,
+        Yamlable,
     };
 
     #[pymodule]
     mod expressions {
-        use pyo3::types::{PyBool, PyFloat, PyInt, PyString};
+        use pyo3::types::{PyFloat, PyInt};
 
         use super::*;
 
@@ -434,6 +414,11 @@ mod lupo {
         impl YamlExpression for BooleanExpression {
             fn stringify(&self) -> &str {
                 &self.0
+            }
+        }
+        impl Display for BooleanExpression {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "{}", self.stringify())
             }
         }
         #[pymethods]
@@ -491,6 +476,11 @@ mod lupo {
                 &self.0
             }
         }
+        impl Display for NumberExpression {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "{}", self.stringify())
+            }
+        }
         #[pymethods]
         impl NumberExpression {
             fn as_bool(&self) -> BooleanExpression {
@@ -530,6 +520,11 @@ mod lupo {
         impl YamlExpression for StringExpression {
             fn stringify(&self) -> &str {
                 &self.0
+            }
+        }
+        impl Display for StringExpression {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "{}", self.stringify())
             }
         }
         #[pymethods]
@@ -1285,8 +1280,16 @@ mod lupo {
 
         #[pyfunction]
         fn lit_str(s: String) -> StringExpression {
-            // TODO: handle quotes
-            unimplemented!()
+            let mut out = String::with_capacity(s.len() + 2);
+            out.push('\'');
+            for ch in s.chars() {
+                if ch == '\'' {
+                    out.push('\'');
+                }
+                out.push(ch);
+            }
+            out.push('\'');
+            StringExpression(out)
         }
 
         #[pyfunction]
@@ -1310,11 +1313,67 @@ mod lupo {
         }
     }
 
+    type StringLike = Either<StringExpression, String>;
+    type BoolLike = Either<BooleanExpression, bool>;
+    type IntLike = Either<NumberExpression, i64>;
+
+    impl TryYamlable for Bound<'_, PyAny> {
+        fn try_as_yaml(&self) -> PyResult<Yaml> {
+            if self.is_none() {
+                Ok(Yaml::Null)
+            } else if let Ok(e) = self.extract::<StringExpression>() {
+                Ok((&e).as_yaml())
+            } else if let Ok(e) = self.extract::<BooleanExpression>() {
+                Ok((&e).as_yaml())
+            } else if let Ok(e) = self.extract::<NumberExpression>() {
+                Ok((&e).as_yaml())
+            } else if self.is_instance_of::<PyBool>() {
+                Ok(self.extract::<bool>()?.as_yaml())
+            } else if self.is_instance_of::<PyInt>() {
+                Ok(self.extract::<i64>()?.as_yaml())
+            } else if self.is_instance_of::<PyFloat>() {
+                Ok(self.extract::<f64>()?.as_yaml())
+            } else if self.is_instance_of::<PyString>() {
+                Ok(self.extract::<String>()?.as_yaml())
+            } else if let Ok(list) = self.cast::<PyList>() {
+                Ok(Yaml::Array(list.try_as_array()?))
+            } else if let Ok(dict) = self.cast::<PyDict>() {
+                Ok(Yaml::Hash(dict.try_as_hash()?))
+            } else {
+                Err(PyValueError::new_err("Invalid value"))
+            }
+        }
+    }
+
+    impl TryHash for Bound<'_, PyDict> {
+        fn try_as_hash(&self) -> PyResult<Hash> {
+            let mut dict_internals = Hash::new();
+            for (key, entry) in self.iter() {
+                if let Ok(key) = key.extract::<String>() {
+                    dict_internals.insert_yaml(key, entry.try_as_yaml()?)
+                } else {
+                    return Err(PyValueError::new_err("Invalid key"));
+                }
+            }
+            Ok(dict_internals)
+        }
+    }
+
+    impl TryArray for Bound<'_, PyList> {
+        fn try_as_array(&self) -> PyResult<Vec<Yaml>> {
+            let mut list_internals = Vec::new();
+            for entry in self.iter() {
+                list_internals.push(entry.try_as_yaml()?)
+            }
+            Ok(list_internals)
+        }
+    }
+
     #[derive(Clone)]
     struct WithArgs {
         options: Option<Hash>,
-        args: Option<String>,
-        entrypoint: Option<String>,
+        args: Option<StringLike>,
+        entrypoint: Option<StringLike>,
     }
 
     impl Yamlable for WithArgs {
@@ -1328,7 +1387,7 @@ mod lupo {
 
     #[derive(Clone)]
     enum StepAction {
-        Run(String),
+        Run(StringLike),
         Action {
             uses: String,
             with: Option<WithArgs>,
@@ -1347,7 +1406,7 @@ mod lupo {
                 StepAction::Action { with, .. } => with.clone(),
             }
         }
-        fn run(&self) -> Option<&String> {
+        fn run(&self) -> Option<&StringLike> {
             match self {
                 StepAction::Run(script) => Some(script),
                 StepAction::Action { .. } => None,
@@ -1358,20 +1417,20 @@ mod lupo {
     #[pyclass]
     #[derive(Clone)]
     struct Step {
-        name: String,
+        name: StringLike,
         step_action: StepAction,
         options: StepOptions,
     }
 
     #[derive(Clone)]
     struct StepOptions {
-        condition: Option<String>,
-        working_directory: Option<String>,
+        condition: Option<StringLike>,
+        working_directory: Option<StringLike>,
         shell: Option<String>,
         id: Option<String>,
-        env: Option<PyMap<String, String>>,
-        continue_on_error: Option<bool>,
-        timeout_minutes: Option<i64>,
+        env: Option<PyMap<String, StringLike>>,
+        continue_on_error: Option<BoolLike>,
+        timeout_minutes: Option<IntLike>,
     }
 
     #[pymethods]
@@ -1400,15 +1459,15 @@ mod lupo {
     #[pyfunction]
     #[pyo3(signature = (name, script, *, condition = None, working_directory = None, shell = None, id = None, env = None, continue_on_error = None, timeout_minutes= None))]
     fn script(
-        name: String,
-        script: String,
-        condition: Option<String>,
-        working_directory: Option<String>,
+        name: StringLike,
+        script: StringLike,
+        condition: Option<StringLike>,
+        working_directory: Option<StringLike>,
         shell: Option<String>,
         id: Option<String>,
-        env: Option<PyMap<String, String>>,
-        continue_on_error: Option<bool>,
-        timeout_minutes: Option<i64>,
+        env: Option<PyMap<String, StringLike>>,
+        continue_on_error: Option<BoolLike>,
+        timeout_minutes: Option<IntLike>,
     ) -> Step {
         Step {
             name,
@@ -1425,19 +1484,19 @@ mod lupo {
         }
     }
     fn make_action(
-        name: String,
+        name: StringLike,
         action: String,
         r#ref: Option<String>,
         with_opts: Option<Hash>,
-        args: Option<String>,
-        entrypoint: Option<String>,
-        condition: Option<String>,
-        working_directory: Option<String>,
+        args: Option<StringLike>,
+        entrypoint: Option<StringLike>,
+        condition: Option<StringLike>,
+        working_directory: Option<StringLike>,
         shell: Option<String>,
         id: Option<String>,
-        env: Option<PyMap<String, String>>,
-        continue_on_error: Option<bool>,
-        timeout_minutes: Option<i64>,
+        env: Option<PyMap<String, StringLike>>,
+        continue_on_error: Option<BoolLike>,
+        timeout_minutes: Option<IntLike>,
     ) -> PyResult<Step> {
         let with_args = if with_opts.is_some() || args.is_some() || entrypoint.is_some() {
             Some(WithArgs {
@@ -1472,19 +1531,19 @@ mod lupo {
     #[pyfunction]
     #[pyo3(signature = (name, action, *, r#ref = None, with_opts = None, args = None, entrypoint = None, condition = None, working_directory = None, shell = None, id = None, env = None, continue_on_error = None, timeout_minutes = None))]
     fn action(
-        name: String,
+        name: StringLike,
         action: String,
         r#ref: Option<String>,
         with_opts: Option<Bound<PyDict>>,
-        args: Option<String>,
-        entrypoint: Option<String>,
-        condition: Option<String>,
-        working_directory: Option<String>,
+        args: Option<StringLike>,
+        entrypoint: Option<StringLike>,
+        condition: Option<StringLike>,
+        working_directory: Option<StringLike>,
         shell: Option<String>,
         id: Option<String>,
-        env: Option<PyMap<String, String>>,
-        continue_on_error: Option<bool>,
-        timeout_minutes: Option<i64>,
+        env: Option<PyMap<String, StringLike>>,
+        continue_on_error: Option<BoolLike>,
+        timeout_minutes: Option<IntLike>,
     ) -> PyResult<Step> {
         make_action(
             name,
@@ -1703,9 +1762,9 @@ mod lupo {
 
     #[derive(Clone)]
     enum RunsOnSpecOptions {
-        Group(String),
-        Labels(String),
-        GroupAndLabels(String, String),
+        Group(StringLike),
+        Labels(StringLike),
+        GroupAndLabels(StringLike, StringLike),
     }
     #[pyclass]
     #[derive(Clone)]
@@ -1715,19 +1774,19 @@ mod lupo {
     #[pymethods]
     impl RunsOnSpec {
         #[new]
-        fn new(group: String, labels: String) -> Self {
+        fn new(group: StringLike, labels: StringLike) -> Self {
             Self {
                 options: RunsOnSpecOptions::GroupAndLabels(group, labels),
             }
         }
         #[staticmethod]
-        fn group(group: String) -> Self {
+        fn group(group: StringLike) -> Self {
             Self {
                 options: RunsOnSpecOptions::Group(group),
             }
         }
         #[staticmethod]
-        fn labels(labels: String) -> Self {
+        fn labels(labels: StringLike) -> Self {
             Self {
                 options: RunsOnSpecOptions::Labels(labels),
             }
@@ -1754,8 +1813,8 @@ mod lupo {
 
     #[derive(Clone)]
     enum RunsOn {
-        String(String),
-        Array(Vec<String>),
+        String(StringLike),
+        Array(Vec<StringLike>),
         Spec(RunsOnSpec),
     }
     impl<'a, 'py> FromPyObject<'a, 'py> for RunsOn {
@@ -1764,9 +1823,9 @@ mod lupo {
         fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
             if let Ok(spec) = obj.extract::<RunsOnSpec>() {
                 Ok(Self::Spec(spec))
-            } else if let Ok(list) = obj.extract::<Vec<String>>() {
+            } else if let Ok(list) = obj.extract::<Vec<StringLike>>() {
                 Ok(Self::Array(list))
-            } else if let Ok(single) = obj.extract::<String>() {
+            } else if let Ok(single) = obj.extract::<StringLike>() {
                 Ok(Self::String(single))
             } else {
                 Err(PyValueError::new_err(
@@ -1788,14 +1847,14 @@ mod lupo {
     #[pyclass]
     #[derive(Clone)]
     struct Environment {
-        name: String,
-        url: Option<String>,
+        name: StringLike,
+        url: Option<StringLike>,
     }
     #[pymethods]
     impl Environment {
         #[new]
         #[pyo3(signature = (name, url = None))]
-        fn new(name: String, url: Option<String>) -> Self {
+        fn new(name: StringLike, url: Option<StringLike>) -> Self {
             Self { name, url }
         }
 
@@ -1819,14 +1878,14 @@ mod lupo {
     #[pyclass]
     #[derive(Clone)]
     struct Concurrency {
-        group: String,
-        cancel_in_progress: Option<bool>,
+        group: StringLike,
+        cancel_in_progress: Option<BoolLike>,
     }
     #[pymethods]
     impl Concurrency {
         #[new]
         #[pyo3(signature = (group, cancel_in_progress=None))]
-        fn new(group: String, cancel_in_progress: Option<bool>) -> Self {
+        fn new(group: StringLike, cancel_in_progress: Option<BoolLike>) -> Self {
             Self {
                 group,
                 cancel_in_progress,
@@ -1846,57 +1905,64 @@ mod lupo {
         }
     }
 
+    #[pyclass]
     #[derive(Clone)]
-    enum DefaultsOptions {
-        Shell(String),
-        WorkingDirectory(String),
-        ShellAndWorkingDirectory(String, String),
+    struct RunDefaults {
+        shell: Option<StringLike>,
+        working_directory: Option<StringLike>,
+    }
+    #[pymethods]
+    impl RunDefaults {
+        #[new]
+        #[pyo3(signature = (*, shell=None, working_directory=None))]
+        fn new(shell: Option<StringLike>, working_directory: Option<StringLike>) -> Self {
+            Self {
+                shell,
+                working_directory,
+            }
+        }
+    }
+    impl MaybeYamlable for &RunDefaults {
+        fn maybe_as_yaml(&self) -> Option<Yaml> {
+            let mut out = Hash::new();
+            out.insert_yaml_opt("shell", &self.shell);
+            out.insert_yaml_opt("working-directory", &self.working_directory);
+            if out.is_empty() {
+                None
+            } else {
+                Some(Yaml::Hash(out))
+            }
+        }
     }
     #[pyclass]
     #[derive(Clone)]
     struct Defaults {
-        options: DefaultsOptions,
+        defaults: Option<PyMap<String, String>>,
+        run_defaults: Option<RunDefaults>,
     }
     #[pymethods]
     impl Defaults {
         #[new]
-        #[pyo3(signature = (*, shell, working_directory))]
-        fn new(shell: String, working_directory: String) -> Self {
+        #[pyo3(signature = (*, defaults=None, run_defaults=None))]
+        fn new(defaults: Option<PyMap<String, String>>, run_defaults: Option<RunDefaults>) -> Self {
             Self {
-                options: DefaultsOptions::ShellAndWorkingDirectory(shell, working_directory),
+                defaults,
+                run_defaults,
             }
-        }
-        #[staticmethod]
-        fn shell(shell: String) -> Self {
-            Self {
-                options: DefaultsOptions::Shell(shell),
-            }
-        }
-        #[staticmethod]
-        fn working_directory(working_directory: String) -> Self {
-            Self {
-                options: DefaultsOptions::WorkingDirectory(working_directory),
-            }
-        }
-
-        fn __str__(&self) -> PyResult<String> {
-            self.as_yaml_string()
         }
     }
-    impl Yamlable for &Defaults {
-        fn as_yaml(&self) -> Yaml {
+    impl MaybeYamlable for &Defaults {
+        fn maybe_as_yaml(&self) -> Option<Yaml> {
             let mut out = Hash::new();
-            match &self.options {
-                DefaultsOptions::Shell(shell) => out.insert_yaml("shell", shell),
-                DefaultsOptions::WorkingDirectory(working_directory) => {
-                    out.insert_yaml("working-directory", working_directory);
-                }
-                DefaultsOptions::ShellAndWorkingDirectory(shell, working_directory) => {
-                    out.insert_yaml("shell", shell);
-                    out.insert_yaml("working-directory", working_directory);
-                }
+            if let Some(run_defaults) = &self.run_defaults {
+                out.insert_yaml_opt("run", run_defaults.maybe_as_yaml());
             }
-            Yaml::Hash(out)
+            out.insert_yaml_opt("defaults", &self.defaults);
+            if out.is_empty() {
+                None
+            } else {
+                Some(Yaml::Hash(out))
+            }
         }
     }
 
@@ -1964,8 +2030,8 @@ mod lupo {
     #[derive(Clone)]
     struct Strategy {
         matrix: Option<Matrix>,
-        fast_fail: Option<bool>,
-        max_parallel: Option<i64>,
+        fast_fail: Option<BoolLike>,
+        max_parallel: Option<IntLike>,
     }
     #[pymethods]
     impl Strategy {
@@ -1974,8 +2040,8 @@ mod lupo {
         fn new(
             // TODO: prevent invalid state where all are None
             matrix: Option<Matrix>,
-            fast_fail: Option<bool>,
-            max_parallel: Option<i64>,
+            fast_fail: Option<BoolLike>,
+            max_parallel: Option<IntLike>,
         ) -> Self {
             Self {
                 matrix,
@@ -1992,8 +2058,8 @@ mod lupo {
         fn as_yaml(&self) -> Yaml {
             let mut strategy = Hash::new();
             strategy.insert_yaml_opt("matrix", &self.matrix);
-            strategy.insert_yaml_opt("fail-fast", self.fast_fail);
-            strategy.insert_yaml_opt("max-parallel", self.max_parallel);
+            strategy.insert_yaml_opt("fail-fast", &self.fast_fail);
+            strategy.insert_yaml_opt("max-parallel", &self.max_parallel);
             Yaml::Hash(strategy)
         }
     }
@@ -2001,13 +2067,13 @@ mod lupo {
     #[pyclass]
     #[derive(Clone)]
     struct Credentials {
-        username: String,
-        password: String,
+        username: StringLike,
+        password: StringLike,
     }
     #[pymethods]
     impl Credentials {
         #[new]
-        fn new(username: String, password: String) -> Self {
+        fn new(username: StringLike, password: StringLike) -> Self {
             Self { username, password }
         }
 
@@ -2027,24 +2093,24 @@ mod lupo {
     #[pyclass]
     #[derive(Clone)]
     struct Container {
-        image: String,
+        image: StringLike,
         credentials: Option<Credentials>,
-        env: Option<PyMap<String, String>>,
-        ports: Option<Vec<i64>>,
-        volumes: Option<Vec<String>>,
-        options: Option<String>,
+        env: Option<PyMap<String, StringLike>>,
+        ports: Option<Vec<IntLike>>,
+        volumes: Option<Vec<StringLike>>,
+        options: Option<StringLike>,
     }
     #[pymethods]
     impl Container {
         #[new]
         #[pyo3(signature = (image, *, credentials = None, env = None, ports = None, volumes = None, options = None))]
         fn new(
-            image: String,
+            image: StringLike,
             credentials: Option<Credentials>,
-            env: Option<PyMap<String, String>>,
-            ports: Option<Vec<i64>>,
-            volumes: Option<Vec<String>>,
-            options: Option<String>,
+            env: Option<PyMap<String, StringLike>>,
+            ports: Option<Vec<IntLike>>,
+            volumes: Option<Vec<StringLike>>,
+            options: Option<StringLike>,
         ) -> Self {
             Self {
                 image,
@@ -2075,7 +2141,7 @@ mod lupo {
 
     #[derive(Clone)]
     enum JobSecretsOptions {
-        Secrets(HashMap<String, String>),
+        Secrets(HashMap<String, StringLike>),
         Inherit,
     }
     #[pyclass]
@@ -2086,7 +2152,7 @@ mod lupo {
     #[pymethods]
     impl JobSecrets {
         #[new]
-        fn new(secrets: HashMap<String, String>) -> Self {
+        fn new(secrets: HashMap<String, StringLike>) -> Self {
             Self {
                 options: JobSecretsOptions::Secrets(secrets),
             }
@@ -2120,21 +2186,21 @@ mod lupo {
     #[pyclass]
     #[derive(Clone)]
     struct Job {
-        name: Option<String>,
+        name: Option<StringLike>,
         permissions: Option<Permissions>,
         needs: Option<Vec<String>>,
-        condition: Option<String>,
+        condition: Option<StringLike>,
         runs_on: Option<RunsOn>,
         snapshot: Option<String>,
         environment: Option<Environment>,
         concurrency: Option<Concurrency>,
-        outputs: Option<PyMap<String, String>>,
-        env: Option<PyMap<String, String>>,
+        outputs: Option<PyMap<String, StringLike>>,
+        env: Option<PyMap<String, StringLike>>,
         defaults: Option<Defaults>,
         steps: Vec<Step>,
         timeout_minutes: Option<i64>,
         strategy: Option<Strategy>,
-        continue_on_error: Option<BoolOrString>,
+        continue_on_error: Option<Either<StringLike, BoolLike>>,
         container: Option<Container>,
         services: Option<PyMap<String, Container>>,
         uses: Option<String>,
@@ -2147,20 +2213,20 @@ mod lupo {
         #[pyo3(signature = (steps, *, name=None, permissions=None, needs=None, condition=None, runs_on=None, snapshot=None, environment=None, concurrency=None, outputs=None, env=None, defaults=None, timeout_minutes=None, strategy=None, continue_on_error=None, container=None, services=None, uses=None, with_opts=None, secrets=None))]
         fn new(
             steps: Vec<Step>,
-            name: Option<String>,
+            name: Option<StringLike>,
             permissions: Option<Permissions>,
             needs: Option<Vec<String>>,
-            condition: Option<String>,
+            condition: Option<StringLike>,
             runs_on: Option<RunsOn>,
             snapshot: Option<String>,
             environment: Option<Environment>,
             concurrency: Option<Concurrency>,
-            outputs: Option<PyMap<String, String>>,
-            env: Option<PyMap<String, String>>,
+            outputs: Option<PyMap<String, StringLike>>,
+            env: Option<PyMap<String, StringLike>>,
             defaults: Option<Defaults>,
             timeout_minutes: Option<i64>,
             strategy: Option<Strategy>,
-            continue_on_error: Option<BoolOrString>,
+            continue_on_error: Option<Either<StringLike, BoolLike>>,
             container: Option<Container>,
             services: Option<PyMap<String, Container>>,
             uses: Option<String>,
@@ -2207,7 +2273,9 @@ mod lupo {
             out.insert_yaml_opt("concurrency", &self.concurrency);
             out.insert_yaml_opt("outputs", &self.outputs);
             out.insert_yaml_opt("env", &self.env);
-            out.insert_yaml_opt("defaults", &self.defaults);
+            if let Some(defaults) = &self.defaults {
+                out.insert_yaml_opt("defaults", &defaults.maybe_as_yaml());
+            }
             out.insert_yaml("steps", &self.steps);
             out.insert_yaml_opt("timeout-minutes", &self.timeout_minutes);
             out.insert_yaml_opt("strategy", &self.strategy);
@@ -3652,9 +3720,9 @@ mod lupo {
 
     #[derive(Clone)]
     enum WorkflowInputType {
-        Boolean { default: Option<bool> },
-        Number { default: Option<i64> },
-        String { default: Option<String> },
+        Boolean { default: Option<BoolLike> },
+        Number { default: Option<IntLike> },
+        String { default: Option<StringLike> },
     }
     impl WorkflowInputType {
         fn get_type(&self) -> Yaml {
@@ -3666,9 +3734,9 @@ mod lupo {
         }
         fn get_default(&self) -> Option<Yaml> {
             match self {
-                Self::Boolean { default } => default.map(|b| Yaml::Boolean(b)),
-                Self::Number { default } => default.map(|n| Yaml::Integer(n)),
-                Self::String { default } => default.clone().map(|s| Yaml::String(s)),
+                Self::Boolean { default } => default.clone().map(|b| b.as_yaml()),
+                Self::Number { default } => default.clone().map(|n| n.as_yaml()),
+                Self::String { default } => default.clone().map(|s| s.as_yaml()),
             }
         }
     }
@@ -3686,7 +3754,7 @@ mod lupo {
         #[pyo3(signature = (*, description=None, default=None, required=None))]
         fn boolean(
             description: Option<String>,
-            default: Option<bool>,
+            default: Option<BoolLike>,
             required: Option<bool>,
         ) -> Self {
             Self {
@@ -3699,7 +3767,7 @@ mod lupo {
         #[pyo3(signature = (*, description=None, default=None, required=None))]
         fn number(
             description: Option<String>,
-            default: Option<i64>,
+            default: Option<IntLike>,
             required: Option<bool>,
         ) -> Self {
             Self {
@@ -3712,7 +3780,7 @@ mod lupo {
         #[pyo3(signature = (*, description=None, default=None, required=None))]
         fn string(
             description: Option<String>,
-            default: Option<String>,
+            default: Option<StringLike>,
             required: Option<bool>,
         ) -> Self {
             Self {
@@ -3741,13 +3809,13 @@ mod lupo {
     #[derive(Clone)]
     struct WorkflowOutput {
         description: Option<String>,
-        value: String,
+        value: StringLike,
     }
     #[pymethods]
     impl WorkflowOutput {
         #[new]
         #[pyo3(signature = (value, *, description=None))]
-        fn new(value: String, description: Option<String>) -> Self {
+        fn new(value: StringLike, description: Option<String>) -> Self {
             Self { value, description }
         }
 
@@ -4419,28 +4487,26 @@ mod lupo {
     #[pyclass]
     struct Workflow {
         name: Option<String>,
-        run_name: Option<Either<StringExpression, String>>,
+        run_name: Option<StringLike>,
         on: Events,
         permissions: Option<Permissions>,
-        env: Option<PyMap<String, String>>,
+        env: Option<PyMap<String, StringLike>>,
         defaults: Option<Defaults>,
-        run_defaults: Option<Defaults>,
         concurrency: Option<Concurrency>,
         jobs: PyMap<String, Job>,
     }
     #[pymethods]
     impl Workflow {
         #[new]
-        #[pyo3(signature = (*, jobs, on, name = None, run_name = None, permissions = None, env = None, defaults = None, run_defaults = None, concurrency = None))]
+        #[pyo3(signature = (*, jobs, on, name = None, run_name = None, permissions = None, env = None, defaults = None, concurrency = None))]
         fn new(
             jobs: PyMap<String, Job>,
             on: Events,
             name: Option<String>,
-            run_name: Option<Either<StringExpression, String>>,
+            run_name: Option<StringLike>,
             permissions: Option<Permissions>,
-            env: Option<PyMap<String, String>>,
+            env: Option<PyMap<String, StringLike>>,
             defaults: Option<Defaults>,
-            run_defaults: Option<Defaults>,
             concurrency: Option<Concurrency>,
         ) -> Self {
             Self {
@@ -4450,7 +4516,6 @@ mod lupo {
                 permissions,
                 env,
                 defaults,
-                run_defaults,
                 concurrency,
                 jobs,
             }
@@ -4468,22 +4533,8 @@ mod lupo {
             out.insert_yaml_opt("on", (&self.on).maybe_as_yaml());
             out.insert_yaml_opt("permissions", &self.permissions);
             out.insert_yaml_opt("env", &self.env);
-            let mut defs = Hash::new();
             if let Some(defaults) = &self.defaults {
-                match &defaults.options {
-                    DefaultsOptions::Shell(shell) => defs.insert_yaml("shell", shell),
-                    DefaultsOptions::WorkingDirectory(working_directory) => {
-                        defs.insert_yaml("working-directory", working_directory);
-                    }
-                    DefaultsOptions::ShellAndWorkingDirectory(shell, working_directory) => {
-                        defs.insert_yaml("shell", shell);
-                        defs.insert_yaml("working-directory", working_directory);
-                    }
-                }
-            }
-            defs.insert_yaml_opt("run", &self.run_defaults);
-            if !defs.is_empty() {
-                out.insert_yaml("defaults", Yaml::Hash(defs));
+                out.insert_yaml_opt("defaults", &defaults.maybe_as_yaml());
             }
             out.insert_yaml_opt("concurrency", &self.concurrency);
             out.insert_yaml("jobs", &self.jobs);
@@ -4499,39 +4550,39 @@ mod lupo {
         #[pyfunction]
         #[pyo3(signature = (*, name = None, version="v6".to_string(), repository=None, r#ref=None, token = None, ssh_key=None, ssh_known_hosts=None, ssh_strict = None, ssh_user=None, persist_credentials=None, path=None, clean=None, filter=None, sparse_checkout=None, sparse_checkout_cone_mode=None, fetch_depth=None, fetch_tags=None, show_progress=None, lfs=None, submodules=None, get_safe_directory=None, github_server_url=None, args = None, entrypoint = None, condition = None, working_directory = None, shell = None, id = None, env = None, continue_on_error = None, timeout_minutes = None))]
         fn checkout(
-            name: Option<String>,
+            name: Option<StringLike>,
             version: String,
 
-            repository: Option<String>,
-            r#ref: Option<String>,
-            token: Option<String>,
-            ssh_key: Option<String>,
-            ssh_known_hosts: Option<String>,
-            ssh_strict: Option<bool>,
-            ssh_user: Option<String>,
-            persist_credentials: Option<bool>,
-            path: Option<String>,
-            clean: Option<bool>,
-            filter: Option<String>,
-            sparse_checkout: Option<String>,
-            sparse_checkout_cone_mode: Option<bool>,
-            fetch_depth: Option<i64>,
-            fetch_tags: Option<bool>,
-            show_progress: Option<bool>,
-            lfs: Option<bool>,
-            submodules: Option<bool>,
-            get_safe_directory: Option<bool>,
-            github_server_url: Option<String>,
+            repository: Option<StringLike>,
+            r#ref: Option<StringLike>,
+            token: Option<StringLike>,
+            ssh_key: Option<StringLike>,
+            ssh_known_hosts: Option<StringLike>,
+            ssh_strict: Option<BoolLike>,
+            ssh_user: Option<StringLike>,
+            persist_credentials: Option<BoolLike>,
+            path: Option<StringLike>,
+            clean: Option<BoolLike>,
+            filter: Option<StringLike>,
+            sparse_checkout: Option<StringLike>,
+            sparse_checkout_cone_mode: Option<BoolLike>,
+            fetch_depth: Option<IntLike>,
+            fetch_tags: Option<BoolLike>,
+            show_progress: Option<BoolLike>,
+            lfs: Option<BoolLike>,
+            submodules: Option<BoolLike>,
+            get_safe_directory: Option<BoolLike>,
+            github_server_url: Option<StringLike>,
 
-            args: Option<String>,
-            entrypoint: Option<String>,
-            condition: Option<String>,
-            working_directory: Option<String>,
+            args: Option<StringLike>,
+            entrypoint: Option<StringLike>,
+            condition: Option<StringLike>,
+            working_directory: Option<StringLike>,
             shell: Option<String>,
             id: Option<String>,
-            env: Option<PyMap<String, String>>,
-            continue_on_error: Option<bool>,
-            timeout_minutes: Option<i64>,
+            env: Option<PyMap<String, StringLike>>,
+            continue_on_error: Option<BoolLike>,
+            timeout_minutes: Option<IntLike>,
         ) -> PyResult<Step> {
             let mut options = Hash::new();
             options.insert_yaml_opt("repository", repository.clone());
@@ -4555,10 +4606,10 @@ mod lupo {
             options.insert_yaml_opt("get-safe-directory", get_safe_directory);
             options.insert_yaml_opt("github-server-url", github_server_url);
             make_action(
-                name.map(|s| s.to_string()).unwrap_or(format!(
+                Either::B(name.map(|s| s.to_string()).unwrap_or(format!(
                     "Checkout {}",
-                    repository.unwrap_or("Repository".to_string())
-                )),
+                    repository.unwrap_or(Either::B("Repository".to_string()))
+                ))),
                 "actions/checkout".to_string(),
                 Some(version),
                 if options.is_empty() {
@@ -4581,7 +4632,7 @@ mod lupo {
         #[pyfunction]
         #[pyo3(signature = (*, name=None, version="v2".to_string(), body=None, body_path=None, draft=None, prerelease=None, preserve_order=None, files=None, overwrite_files=None, release_name=None, tag_name=None, fail_on_unmatched_files=None, repository=None, target_commitish=None, token=None, discussion_category_name=None, generate_release_notes=None, append_body=None, make_latest=None, args=None, entrypoint=None, condition=None, working_directory=None, shell=None, id=None, env=None, continue_on_error=None, timeout_minutes=None))]
         fn release(
-            name: Option<String>,
+            name: Option<StringLike>,
             version: String,
 
             body: Option<String>,
@@ -4602,15 +4653,15 @@ mod lupo {
             append_body: Option<bool>,
             make_latest: Option<String>,
 
-            args: Option<String>,
-            entrypoint: Option<String>,
-            condition: Option<String>,
-            working_directory: Option<String>,
+            args: Option<StringLike>,
+            entrypoint: Option<StringLike>,
+            condition: Option<StringLike>,
+            working_directory: Option<StringLike>,
             shell: Option<String>,
             id: Option<String>,
-            env: Option<PyMap<String, String>>,
-            continue_on_error: Option<bool>,
-            timeout_minutes: Option<i64>,
+            env: Option<PyMap<String, StringLike>>,
+            continue_on_error: Option<BoolLike>,
+            timeout_minutes: Option<IntLike>,
         ) -> PyResult<Step> {
             let mut options = Hash::new();
             options.insert_yaml_opt("body", body);
@@ -4631,11 +4682,11 @@ mod lupo {
             options.insert_yaml_opt("append_body", append_body);
             options.insert_yaml_opt("make_latest", make_latest);
             let name = name.unwrap_or({
-                if let Some(repository) = repository {
+                Either::B(if let Some(repository) = repository {
                     format!("Make Release for '{}'", repository)
                 } else {
                     "Make Release".to_string()
-                }
+                })
             });
             make_action(
                 name,
@@ -4663,7 +4714,7 @@ mod lupo {
         fn cache(
             key: String,
 
-            name: Option<String>,
+            name: Option<StringLike>,
             version: String,
 
             path: Option<Vec<String>>,
@@ -4673,15 +4724,15 @@ mod lupo {
             lookup_only: Option<bool>,
             segment_download_timeout_mins: Option<i64>,
 
-            args: Option<String>,
-            entrypoint: Option<String>,
-            condition: Option<String>,
-            working_directory: Option<String>,
+            args: Option<StringLike>,
+            entrypoint: Option<StringLike>,
+            condition: Option<StringLike>,
+            working_directory: Option<StringLike>,
             shell: Option<String>,
             id: Option<String>,
-            env: Option<PyMap<String, String>>,
-            continue_on_error: Option<bool>,
-            timeout_minutes: Option<i64>,
+            env: Option<PyMap<String, StringLike>>,
+            continue_on_error: Option<BoolLike>,
+            timeout_minutes: Option<IntLike>,
         ) -> PyResult<Step> {
             let mut options = Hash::new();
             options.insert_yaml("key", key);
@@ -4690,13 +4741,13 @@ mod lupo {
             options.insert_yaml_opt("ensembleCrossOsArchive", enable_cross_os_archive);
             options.insert_yaml_opt("fail-on-cache-miss", fail_on_cache_miss);
             options.insert_yaml_opt("lookup-only", lookup_only);
-            let name = name.unwrap_or("Save/Restore Cache".to_string());
+            let name = name.unwrap_or(Either::B("Save/Restore Cache".to_string()));
             let env = {
                 if let Some(sgtm) = segment_download_timeout_mins {
                     let mut out = PyMap::default();
                     out.insert(
                         "SEGMENT_DOWNLOAD_TIMEOUT_MINS".to_string(),
-                        sgtm.to_string(),
+                        Either::B(sgtm.to_string()),
                     );
                     if let Some(env) = env {
                         for (k, v) in env.into_iter() {
@@ -4730,7 +4781,7 @@ mod lupo {
         fn cache_save(
             key: String,
 
-            name: Option<String>,
+            name: Option<StringLike>,
             version: String,
 
             path: Option<Vec<String>>,
@@ -4740,15 +4791,15 @@ mod lupo {
             lookup_only: Option<bool>,
             segment_download_timeout_mins: Option<i64>,
 
-            args: Option<String>,
-            entrypoint: Option<String>,
-            condition: Option<String>,
-            working_directory: Option<String>,
+            args: Option<StringLike>,
+            entrypoint: Option<StringLike>,
+            condition: Option<StringLike>,
+            working_directory: Option<StringLike>,
             shell: Option<String>,
             id: Option<String>,
-            env: Option<PyMap<String, String>>,
-            continue_on_error: Option<bool>,
-            timeout_minutes: Option<i64>,
+            env: Option<PyMap<String, StringLike>>,
+            continue_on_error: Option<BoolLike>,
+            timeout_minutes: Option<IntLike>,
         ) -> PyResult<Step> {
             let mut options = Hash::new();
             options.insert_yaml("key", key);
@@ -4757,13 +4808,13 @@ mod lupo {
             options.insert_yaml_opt("ensembleCrossOsArchive", enable_cross_os_archive);
             options.insert_yaml_opt("fail-on-cache-miss", fail_on_cache_miss);
             options.insert_yaml_opt("lookup-only", lookup_only);
-            let name = name.unwrap_or("Save Cache".to_string());
+            let name = name.unwrap_or(Either::B("Save Cache".to_string()));
             let env = {
                 if let Some(sgtm) = segment_download_timeout_mins {
                     let mut out = PyMap::default();
                     out.insert(
                         "SEGMENT_DOWNLOAD_TIMEOUT_MINS".to_string(),
-                        sgtm.to_string(),
+                        Either::B(sgtm.to_string()),
                     );
                     if let Some(env) = env {
                         for (k, v) in env.into_iter() {
@@ -4795,27 +4846,27 @@ mod lupo {
         #[pyfunction]
         #[pyo3(signature = (*, key, name=None, version="v5".to_string(), path=None, restore_keys=None, enable_cross_os_archive=None, fail_on_cache_miss=None, lookup_only=None, segment_download_timeout_mins=None, args=None, entrypoint=None, condition=None, working_directory=None, shell=None, id=None, env=None, continue_on_error=None, timeout_minutes=None))]
         fn cache_restore(
-            key: String,
+            key: StringLike,
 
-            name: Option<String>,
+            name: Option<StringLike>,
             version: String,
 
-            path: Option<Vec<String>>,
-            restore_keys: Option<Vec<String>>,
-            enable_cross_os_archive: Option<bool>,
-            fail_on_cache_miss: Option<bool>,
-            lookup_only: Option<bool>,
-            segment_download_timeout_mins: Option<i64>,
+            path: Option<Vec<StringLike>>,
+            restore_keys: Option<Vec<StringLike>>,
+            enable_cross_os_archive: Option<BoolLike>,
+            fail_on_cache_miss: Option<BoolLike>,
+            lookup_only: Option<BoolLike>,
+            segment_download_timeout_mins: Option<IntLike>,
 
-            args: Option<String>,
-            entrypoint: Option<String>,
-            condition: Option<String>,
-            working_directory: Option<String>,
+            args: Option<StringLike>,
+            entrypoint: Option<StringLike>,
+            condition: Option<StringLike>,
+            working_directory: Option<StringLike>,
             shell: Option<String>,
             id: Option<String>,
-            env: Option<PyMap<String, String>>,
-            continue_on_error: Option<bool>,
-            timeout_minutes: Option<i64>,
+            env: Option<PyMap<String, StringLike>>,
+            continue_on_error: Option<BoolLike>,
+            timeout_minutes: Option<IntLike>,
         ) -> PyResult<Step> {
             let mut options = Hash::new();
             options.insert_yaml("key", key);
@@ -4824,13 +4875,13 @@ mod lupo {
             options.insert_yaml_opt("ensembleCrossOsArchive", enable_cross_os_archive);
             options.insert_yaml_opt("fail-on-cache-miss", fail_on_cache_miss);
             options.insert_yaml_opt("lookup-only", lookup_only);
-            let name = name.unwrap_or("Restore Cache".to_string());
+            let name = name.unwrap_or(Either::B("Restore Cache".to_string()));
             let env = {
                 if let Some(sgtm) = segment_download_timeout_mins {
                     let mut out = PyMap::default();
                     out.insert(
                         "SEGMENT_DOWNLOAD_TIMEOUT_MINS".to_string(),
-                        sgtm.to_string(),
+                        Either::B(sgtm.to_string()),
                     );
                     if let Some(env) = env {
                         for (k, v) in env.into_iter() {
@@ -4862,27 +4913,27 @@ mod lupo {
         #[pyfunction]
         #[pyo3(signature = (*, path, name=None, version="v6".to_string(), artifact_name=None, if_no_files_found=None, retention_days=None, compression_level=None, overwrite=None, include_hidden_files=None, args=None, entrypoint=None, condition=None, working_directory=None, shell=None, id=None, env=None, continue_on_error=None, timeout_minutes=None))]
         fn upload_artifact(
-            path: String,
+            path: StringLike,
 
-            name: Option<String>,
+            name: Option<StringLike>,
             version: String,
 
-            artifact_name: Option<String>,
-            if_no_files_found: Option<String>,
-            retention_days: Option<i64>,
-            compression_level: Option<i64>,
-            overwrite: Option<bool>,
-            include_hidden_files: Option<bool>,
+            artifact_name: Option<StringLike>,
+            if_no_files_found: Option<StringLike>,
+            retention_days: Option<IntLike>,
+            compression_level: Option<IntLike>,
+            overwrite: Option<BoolLike>,
+            include_hidden_files: Option<BoolLike>,
 
-            args: Option<String>,
-            entrypoint: Option<String>,
-            condition: Option<String>,
-            working_directory: Option<String>,
+            args: Option<StringLike>,
+            entrypoint: Option<StringLike>,
+            condition: Option<StringLike>,
+            working_directory: Option<StringLike>,
             shell: Option<String>,
             id: Option<String>,
-            env: Option<PyMap<String, String>>,
-            continue_on_error: Option<bool>,
-            timeout_minutes: Option<i64>,
+            env: Option<PyMap<String, StringLike>>,
+            continue_on_error: Option<BoolLike>,
+            timeout_minutes: Option<IntLike>,
         ) -> PyResult<Step> {
             let mut options = Hash::new();
             options.insert_yaml_opt("name", artifact_name.clone());
@@ -4891,12 +4942,16 @@ mod lupo {
                 "if_no_files_found",
                 if_no_files_found
                     .map(|inff| {
-                        if matches!(inff.to_lowercase().as_ref(), "warn" | "error" | "ignore") {
-                            Ok(inff.to_lowercase())
+                        if let Either::B(inff) = inff {
+                            if matches!(inff.to_lowercase().as_ref(), "warn" | "error" | "ignore") {
+                                Ok(Either::B(inff.to_lowercase()))
+                            } else {
+                                Err(PyValueError::new_err(
+                                    "'if_no_files_found' must be 'warn', 'error' or 'ignore'",
+                                ))
+                            }
                         } else {
-                            Err(PyValueError::new_err(
-                                "'if_no_files_found' must be 'warn', 'error' or 'ignore'",
-                            ))
+                            Ok(inff)
                         }
                     })
                     .transpose()?,
@@ -4905,14 +4960,16 @@ mod lupo {
                 "retention-days",
                 retention_days
                     .map(|rt| {
+                        if let Either::B(rt) = rt {
                         if rt < 1 {
                             Err(PyValueError::new_err("retention days must be > 0"))
                         } else {
                             if rt > 90 {
                                 println!("Warning: retention days should be <= 90 unless a higher limit is made in the repository settings!");
                             }
-                            Ok(rt)
+                            Ok(Either::B(rt))
                         }
+                        } else {Ok(rt)}
                     })
                     .transpose()?,
             );
@@ -4920,10 +4977,14 @@ mod lupo {
                 "compression-level",
                 compression_level
                     .map(|cl| {
-                        if cl < 0 || cl > 9 {
-                            Err(PyValueError::new_err(
-                                "compression level must be in the range 0-9",
-                            ))
+                        if let Either::B(cl) = cl {
+                            if cl < 0 || cl > 9 {
+                                Err(PyValueError::new_err(
+                                    "compression level must be in the range 0-9",
+                                ))
+                            } else {
+                                Ok(Either::B(cl))
+                            }
                         } else {
                             Ok(cl)
                         }
@@ -4932,10 +4993,10 @@ mod lupo {
             );
             options.insert_yaml_opt("overwrite", overwrite);
             options.insert_yaml_opt("include-hidden-files", include_hidden_files);
-            let name = name.unwrap_or(format!(
+            let name = name.unwrap_or(Either::B(format!(
                 "Upload {}",
-                artifact_name.unwrap_or("Artifact".to_string())
-            ));
+                artifact_name.unwrap_or(Either::B("Artifact".to_string()))
+            )));
             make_action(
                 name,
                 "actions/upload-artifact".to_string(),
@@ -4956,26 +5017,26 @@ mod lupo {
         #[pyfunction]
         #[pyo3(signature = (*, pattern=None, name=None, version="v6".to_string(), artifact_name=None, separate_directories=None, delete_merged=None, retention_days=None, compression_level=None, args=None, entrypoint=None, condition=None, working_directory=None, shell=None, id=None, env=None, continue_on_error=None, timeout_minutes=None))]
         fn upload_artifact_merge(
-            pattern: Option<String>,
+            pattern: Option<StringLike>,
 
-            name: Option<String>,
+            name: Option<StringLike>,
             version: String,
 
-            artifact_name: Option<String>,
-            separate_directories: Option<bool>,
-            delete_merged: Option<bool>,
-            retention_days: Option<i64>,
-            compression_level: Option<i64>,
+            artifact_name: Option<StringLike>,
+            separate_directories: Option<BoolLike>,
+            delete_merged: Option<BoolLike>,
+            retention_days: Option<IntLike>,
+            compression_level: Option<IntLike>,
 
-            args: Option<String>,
-            entrypoint: Option<String>,
-            condition: Option<String>,
-            working_directory: Option<String>,
+            args: Option<StringLike>,
+            entrypoint: Option<StringLike>,
+            condition: Option<StringLike>,
+            working_directory: Option<StringLike>,
             shell: Option<String>,
             id: Option<String>,
-            env: Option<PyMap<String, String>>,
-            continue_on_error: Option<bool>,
-            timeout_minutes: Option<i64>,
+            env: Option<PyMap<String, StringLike>>,
+            continue_on_error: Option<BoolLike>,
+            timeout_minutes: Option<IntLike>,
         ) -> PyResult<Step> {
             let mut options = Hash::new();
             options.insert_yaml_opt("name", artifact_name.clone());
@@ -4986,14 +5047,16 @@ mod lupo {
                 "retention-days",
                 retention_days
                     .map(|rt| {
+                        if let Either::B(rt) = rt {
                         if rt < 1 {
                             Err(PyValueError::new_err("retention days must be > 0"))
                         } else {
                             if rt > 90 {
                                 println!("Warning: retention days should be <= 90 unless a higher limit is made in the repository settings!");
                             }
-                            Ok(rt)
+                            Ok(Either::B(rt))
                         }
+                        } else {Ok(rt)}
                     })
                     .transpose()?,
             );
@@ -5001,20 +5064,24 @@ mod lupo {
                 "compression-level",
                 compression_level
                     .map(|cl| {
-                        if cl < 0 || cl > 9 {
-                            Err(PyValueError::new_err(
-                                "compression level must be in the range 0-9",
-                            ))
+                        if let Either::B(cl) = cl {
+                            if cl < 0 || cl > 9 {
+                                Err(PyValueError::new_err(
+                                    "compression level must be in the range 0-9",
+                                ))
+                            } else {
+                                Ok(Either::B(cl))
+                            }
                         } else {
                             Ok(cl)
                         }
                     })
                     .transpose()?,
             );
-            let name = name.unwrap_or(format!(
+            let name = name.unwrap_or(Either::B(format!(
                 "Upload (merged) {}",
-                artifact_name.unwrap_or("Artifacts".to_string())
-            ));
+                artifact_name.unwrap_or(Either::B("Artifacts".to_string()))
+            )));
             make_action(
                 name,
                 "actions/upload-artifact/merge".to_string(),
@@ -5039,32 +5106,40 @@ mod lupo {
         #[pyfunction]
         #[pyo3(signature = (*, path=None, name=None, version="v7".to_string(), artifact_name=None, artifact_ids=None, pattern=None, merge_multiple=None, github_token=None, repository=None, run_id=None, args=None, entrypoint=None, condition=None, working_directory=None, shell=None, id=None, env=None, continue_on_error=None, timeout_minutes=None))]
         fn download_artifact(
-            path: Option<String>,
+            path: Option<StringLike>,
 
-            name: Option<String>,
+            name: Option<StringLike>,
             version: String,
 
-            artifact_name: Option<String>,
-            artifact_ids: Option<Vec<String>>,
-            pattern: Option<String>,
-            merge_multiple: Option<bool>,
-            github_token: Option<String>,
-            repository: Option<String>,
-            run_id: Option<String>,
+            artifact_name: Option<StringLike>,
+            artifact_ids: Option<Vec<StringLike>>,
+            pattern: Option<StringLike>,
+            merge_multiple: Option<BoolLike>,
+            github_token: Option<StringLike>,
+            repository: Option<StringLike>,
+            run_id: Option<StringLike>,
 
-            args: Option<String>,
-            entrypoint: Option<String>,
-            condition: Option<String>,
-            working_directory: Option<String>,
+            args: Option<StringLike>,
+            entrypoint: Option<StringLike>,
+            condition: Option<StringLike>,
+            working_directory: Option<StringLike>,
             shell: Option<String>,
             id: Option<String>,
-            env: Option<PyMap<String, String>>,
-            continue_on_error: Option<bool>,
-            timeout_minutes: Option<i64>,
+            env: Option<PyMap<String, StringLike>>,
+            continue_on_error: Option<BoolLike>,
+            timeout_minutes: Option<IntLike>,
         ) -> PyResult<Step> {
             let mut options = Hash::new();
             options.insert_yaml_opt("name", artifact_name.clone());
-            options.insert_yaml_opt("artifact-ids", artifact_ids.map(|ids| ids.join(",")));
+            options.insert_yaml_opt(
+                "artifact-ids",
+                artifact_ids.map(|ids| {
+                    ids.iter()
+                        .map(|s| s.to_string())
+                        .collect::<Vec<String>>()
+                        .join(",")
+                }),
+            );
             options.insert_yaml_opt("pattern", pattern);
             options.insert_yaml_opt("path", path);
             options.insert_yaml_opt("merge-multipl", merge_multiple);
@@ -5072,10 +5147,10 @@ mod lupo {
             options.insert_yaml_opt("repository", repository);
             options.insert_yaml_opt("run-id", run_id);
 
-            let name = name.unwrap_or(format!(
+            let name = name.unwrap_or(Either::B(format!(
                 "Download {}",
-                artifact_name.unwrap_or("Artifact".to_string())
-            ));
+                artifact_name.unwrap_or(Either::B("Artifact".to_string()))
+            )));
             make_action(
                 name,
                 "actions/download-artifact".to_string(),
@@ -5101,31 +5176,31 @@ mod lupo {
         #[pyfunction]
         #[pyo3(signature = (*, name=None, version="v6".to_string(), node_version=None, node_version_file=None, check_latest=None, architecture=None, token=None, cache=None, package_manager_cache=None, cache_dependency_path=None, registry_url=None, scope=None, mirror=None, mirror_token=None, args=None, entrypoint=None, condition=None, working_directory=None, shell=None, id=None, env=None, continue_on_error=None, timeout_minutes=None))]
         fn setup_node(
-            name: Option<String>,
+            name: Option<StringLike>,
             version: String,
 
-            node_version: Option<String>,
-            node_version_file: Option<String>,
-            check_latest: Option<bool>,
-            architecture: Option<String>,
-            token: Option<String>,
-            cache: Option<String>,
-            package_manager_cache: Option<bool>,
-            cache_dependency_path: Option<String>,
-            registry_url: Option<String>,
-            scope: Option<String>,
-            mirror: Option<String>,
-            mirror_token: Option<String>,
+            node_version: Option<StringLike>,
+            node_version_file: Option<StringLike>,
+            check_latest: Option<BoolLike>,
+            architecture: Option<StringLike>,
+            token: Option<StringLike>,
+            cache: Option<StringLike>,
+            package_manager_cache: Option<BoolLike>,
+            cache_dependency_path: Option<StringLike>,
+            registry_url: Option<StringLike>,
+            scope: Option<StringLike>,
+            mirror: Option<StringLike>,
+            mirror_token: Option<StringLike>,
 
-            args: Option<String>,
-            entrypoint: Option<String>,
-            condition: Option<String>,
-            working_directory: Option<String>,
+            args: Option<StringLike>,
+            entrypoint: Option<StringLike>,
+            condition: Option<StringLike>,
+            working_directory: Option<StringLike>,
             shell: Option<String>,
             id: Option<String>,
-            env: Option<PyMap<String, String>>,
-            continue_on_error: Option<bool>,
-            timeout_minutes: Option<i64>,
+            env: Option<PyMap<String, StringLike>>,
+            continue_on_error: Option<BoolLike>,
+            timeout_minutes: Option<IntLike>,
         ) -> PyResult<Step> {
             let mut options = Hash::new();
             options.insert_yaml_opt("node-version", node_version);
@@ -5137,12 +5212,16 @@ mod lupo {
                 "cache",
                 cache
                     .map(|c| {
-                        if matches!(c.to_lowercase().as_ref(), "npm" | "yarn" | "pnpm") {
-                            Ok(c.to_lowercase())
+                        if let Either::B(c) = c {
+                            if matches!(c.to_lowercase().as_ref(), "npm" | "yarn" | "pnpm") {
+                                Ok(Either::B(c.to_lowercase()))
+                            } else {
+                                Err(PyValueError::new_err(
+                                    "'cache' must be 'npm', 'yarn' or 'pnpm'",
+                                ))
+                            }
                         } else {
-                            Err(PyValueError::new_err(
-                                "'cache' must be 'npm', 'yarn' or 'pnpm'",
-                            ))
+                            Ok(c)
                         }
                     })
                     .transpose()?,
@@ -5154,7 +5233,7 @@ mod lupo {
             options.insert_yaml_opt("mirror", mirror);
             options.insert_yaml_opt("mirror-token", mirror_token);
             make_action(
-                name.unwrap_or("Setup Node".to_string()),
+                name.unwrap_or(Either::B("Setup Node".to_string())),
                 "actions/setup-node".to_string(),
                 Some(version),
                 Some(options),
@@ -5173,32 +5252,32 @@ mod lupo {
         #[pyfunction]
         #[pyo3(signature = (*, name=None, version="v6".to_string(), python_version=None, python_version_file=None, check_latest = None, architecture=None, token=None, cache=None, package_manager_cache=None, cache_dependency_path=None, update_environment=None, allow_prereleases=None, freethreaded=None, pip_versions=None, pip_install=None, args=None, entrypoint=None, condition=None, working_directory=None, shell=None, id=None, env=None, continue_on_error=None, timeout_minutes=None))]
         fn setup_python(
-            name: Option<String>,
+            name: Option<StringLike>,
             version: String,
 
-            python_version: Option<String>,
-            python_version_file: Option<String>,
-            check_latest: Option<bool>,
-            architecture: Option<String>,
-            token: Option<String>,
-            cache: Option<String>,
-            package_manager_cache: Option<bool>,
-            cache_dependency_path: Option<String>,
-            update_environment: Option<bool>,
-            allow_prereleases: Option<bool>,
-            freethreaded: Option<bool>,
-            pip_versions: Option<String>,
-            pip_install: Option<String>,
+            python_version: Option<StringLike>,
+            python_version_file: Option<StringLike>,
+            check_latest: Option<BoolLike>,
+            architecture: Option<StringLike>,
+            token: Option<StringLike>,
+            cache: Option<StringLike>,
+            package_manager_cache: Option<BoolLike>,
+            cache_dependency_path: Option<StringLike>,
+            update_environment: Option<BoolLike>,
+            allow_prereleases: Option<BoolLike>,
+            freethreaded: Option<BoolLike>,
+            pip_versions: Option<StringLike>,
+            pip_install: Option<StringLike>,
 
-            args: Option<String>,
-            entrypoint: Option<String>,
-            condition: Option<String>,
-            working_directory: Option<String>,
+            args: Option<StringLike>,
+            entrypoint: Option<StringLike>,
+            condition: Option<StringLike>,
+            working_directory: Option<StringLike>,
             shell: Option<String>,
             id: Option<String>,
-            env: Option<PyMap<String, String>>,
-            continue_on_error: Option<bool>,
-            timeout_minutes: Option<i64>,
+            env: Option<PyMap<String, StringLike>>,
+            continue_on_error: Option<BoolLike>,
+            timeout_minutes: Option<IntLike>,
         ) -> PyResult<Step> {
             let mut options = Hash::new();
             options.insert_yaml_opt("python-version", python_version);
@@ -5210,12 +5289,16 @@ mod lupo {
                 "cache",
                 cache
                     .map(|c| {
-                        if matches!(c.to_lowercase().as_ref(), "pip" | "pipenv" | "poetry") {
-                            Ok(c.to_lowercase())
+                        if let Either::B(c) = c {
+                            if matches!(c.to_lowercase().as_ref(), "pip" | "pipenv" | "poetry") {
+                                Ok(Either::B(c.to_lowercase()))
+                            } else {
+                                Err(PyValueError::new_err(
+                                    "'cache' must be 'pip', 'pipenv' or 'poetry'",
+                                ))
+                            }
                         } else {
-                            Err(PyValueError::new_err(
-                                "'cache' must be 'pip', 'pipenv' or 'poetry'",
-                            ))
+                            Ok(c)
                         }
                     })
                     .transpose()?,
@@ -5228,7 +5311,7 @@ mod lupo {
             options.insert_yaml_opt("pip-versions", pip_versions);
             options.insert_yaml_opt("pip-install", pip_install);
             make_action(
-                name.unwrap_or("Setup Python".to_string()),
+                name.unwrap_or(Either::B("Setup Python".to_string())),
                 "actions/setup-python".to_string(),
                 Some(version),
                 Some(options),
@@ -5247,26 +5330,26 @@ mod lupo {
         #[pyfunction]
         #[pyo3(signature = (*, name=None, version="v6".to_string(), go_version=None, go_version_file=None, check_latest = None, architecture=None, token=None, cache=None, cache_dependency_path=None, args=None, entrypoint=None, condition=None, working_directory=None, shell=None, id=None, env=None, continue_on_error=None, timeout_minutes=None))]
         fn setup_go(
-            name: Option<String>,
+            name: Option<StringLike>,
             version: String,
 
-            go_version: Option<String>,
-            go_version_file: Option<String>,
-            check_latest: Option<bool>,
-            architecture: Option<String>,
-            token: Option<String>,
-            cache: Option<bool>,
-            cache_dependency_path: Option<String>,
+            go_version: Option<StringLike>,
+            go_version_file: Option<StringLike>,
+            check_latest: Option<BoolLike>,
+            architecture: Option<StringLike>,
+            token: Option<StringLike>,
+            cache: Option<BoolLike>,
+            cache_dependency_path: Option<StringLike>,
 
-            args: Option<String>,
-            entrypoint: Option<String>,
-            condition: Option<String>,
-            working_directory: Option<String>,
+            args: Option<StringLike>,
+            entrypoint: Option<StringLike>,
+            condition: Option<StringLike>,
+            working_directory: Option<StringLike>,
             shell: Option<String>,
             id: Option<String>,
-            env: Option<PyMap<String, String>>,
-            continue_on_error: Option<bool>,
-            timeout_minutes: Option<i64>,
+            env: Option<PyMap<String, StringLike>>,
+            continue_on_error: Option<BoolLike>,
+            timeout_minutes: Option<IntLike>,
         ) -> PyResult<Step> {
             let mut options = Hash::new();
             options.insert_yaml_opt("go-version", go_version);
@@ -5277,7 +5360,7 @@ mod lupo {
             options.insert_yaml_opt("cache", cache);
             options.insert_yaml_opt("cache-dependency-path", cache_dependency_path);
             make_action(
-                name.unwrap_or("Setup Go".to_string()),
+                name.unwrap_or(Either::B("Setup Go".to_string())),
                 "actions/setup-go".to_string(),
                 Some(version),
                 Some(options),
@@ -5296,44 +5379,68 @@ mod lupo {
         #[pyfunction]
         #[pyo3(signature = (*, name=None, version="v1".to_string(), toolchain=None, target=None, components=None, cache=None, cache_directories=None, cache_workspaces=None, cache_on_failure=None, cache_key=None, cache_shared_key=None, cache_bin=None, cache_provider=None, cache_all_crates=None, cache_workspace_crates=None, matcher=None, rustflags=None, r#override=None, rust_src_dir=None, args=None, entrypoint=None, condition=None, working_directory=None, shell=None, id=None, env=None, continue_on_error=None, timeout_minutes=None))]
         fn setup_rust(
-            name: Option<String>,
+            name: Option<StringLike>,
             version: String,
 
-            toolchain: Option<String>,
-            target: Option<String>,
-            components: Option<Vec<String>>,
-            cache: Option<bool>,
-            cache_directories: Option<Vec<String>>,
-            cache_workspaces: Option<Vec<String>>,
-            cache_on_failure: Option<bool>,
-            cache_key: Option<String>,
-            cache_shared_key: Option<String>,
-            cache_bin: Option<bool>,
-            cache_provider: Option<String>,
-            cache_all_crates: Option<bool>,
-            cache_workspace_crates: Option<bool>,
-            matcher: Option<bool>,
-            rustflags: Option<String>,
-            r#override: Option<bool>,
-            rust_src_dir: Option<String>,
+            toolchain: Option<StringLike>,
+            target: Option<StringLike>,
+            components: Option<Vec<StringLike>>,
+            cache: Option<BoolLike>,
+            cache_directories: Option<Vec<StringLike>>,
+            cache_workspaces: Option<Vec<StringLike>>,
+            cache_on_failure: Option<BoolLike>,
+            cache_key: Option<StringLike>,
+            cache_shared_key: Option<StringLike>,
+            cache_bin: Option<BoolLike>,
+            cache_provider: Option<StringLike>,
+            cache_all_crates: Option<BoolLike>,
+            cache_workspace_crates: Option<BoolLike>,
+            matcher: Option<BoolLike>,
+            rustflags: Option<StringLike>,
+            r#override: Option<BoolLike>,
+            rust_src_dir: Option<StringLike>,
 
-            args: Option<String>,
-            entrypoint: Option<String>,
-            condition: Option<String>,
-            working_directory: Option<String>,
+            args: Option<StringLike>,
+            entrypoint: Option<StringLike>,
+            condition: Option<StringLike>,
+            working_directory: Option<StringLike>,
             shell: Option<String>,
             id: Option<String>,
-            env: Option<PyMap<String, String>>,
-            continue_on_error: Option<bool>,
-            timeout_minutes: Option<i64>,
+            env: Option<PyMap<String, StringLike>>,
+            continue_on_error: Option<BoolLike>,
+            timeout_minutes: Option<IntLike>,
         ) -> PyResult<Step> {
             let mut options = Hash::new();
             options.insert_yaml_opt("toolchain", toolchain);
             options.insert_yaml_opt("target", target);
-            options.insert_yaml_opt("components", components.map(|c| c.join(",")));
+            options.insert_yaml_opt(
+                "components",
+                components.map(|c| {
+                    c.iter()
+                        .map(|s| s.to_string())
+                        .collect::<Vec<String>>()
+                        .join(",")
+                }),
+            );
             options.insert_yaml_opt("cache", cache);
-            options.insert_yaml_opt("cache-directories", cache_directories.map(|c| c.join("\n")));
-            options.insert_yaml_opt("cache-workspaces", cache_workspaces.map(|c| c.join("\n")));
+            options.insert_yaml_opt(
+                "cache-directories",
+                cache_directories.map(|c| {
+                    c.iter()
+                        .map(|s| s.to_string())
+                        .collect::<Vec<String>>()
+                        .join("\n")
+                }),
+            );
+            options.insert_yaml_opt(
+                "cache-workspaces",
+                cache_workspaces.map(|c| {
+                    c.iter()
+                        .map(|s| s.to_string())
+                        .collect::<Vec<String>>()
+                        .join("\n")
+                }),
+            );
             options.insert_yaml_opt("cache-on-failure", cache_on_failure);
             options.insert_yaml_opt("cache-key", cache_key);
             options.insert_yaml_opt("cache-shared-key", cache_shared_key);
@@ -5342,15 +5449,19 @@ mod lupo {
                 "cache-provider",
                 cache_provider
                     .map(|cp| {
-                        if matches!(
-                            cp.to_lowercase().as_ref(),
-                            "github" | "buildjet" | "warpbuild"
-                        ) {
-                            Ok(cp)
+                        if let Either::B(cp) = cp {
+                            if matches!(
+                                cp.to_lowercase().as_ref(),
+                                "github" | "buildjet" | "warpbuild"
+                            ) {
+                                Ok(Either::B(cp))
+                            } else {
+                                Err(PyValueError::new_err(
+                                    "'cache-provider' must be 'github', 'buildjet' or 'warpbuild'",
+                                ))
+                            }
                         } else {
-                            Err(PyValueError::new_err(
-                                "'cache-provider' must be 'github', 'buildjet' or 'warpbuild'",
-                            ))
+                            Ok(cp)
                         }
                     })
                     .transpose()?,
@@ -5362,7 +5473,7 @@ mod lupo {
             options.insert_yaml_opt("override", r#override);
             options.insert_yaml_opt("rust-src-dir", rust_src_dir);
             make_action(
-                name.unwrap_or("Setup Rust".to_string()),
+                name.unwrap_or(Either::B("Setup Rust".to_string())),
                 "actions-rust-lang/setup-rust-toolchain".to_string(),
                 Some(version),
                 Some(options),
@@ -5381,23 +5492,23 @@ mod lupo {
         #[pyfunction]
         #[pyo3(signature = (*, tool, name=None, version="v1".to_string(), checksum=None, fallback=None, args=None, entrypoint=None, condition=None, working_directory=None, shell=None, id=None, env=None, continue_on_error=None, timeout_minutes=None))]
         fn install_rust_tool(
-            tool: Vec<String>,
+            tool: Vec<StringLike>,
 
-            name: Option<String>,
+            name: Option<StringLike>,
             version: String,
 
-            checksum: Option<bool>,
-            fallback: Option<String>,
+            checksum: Option<BoolLike>,
+            fallback: Option<StringLike>,
 
-            args: Option<String>,
-            entrypoint: Option<String>,
-            condition: Option<String>,
-            working_directory: Option<String>,
+            args: Option<StringLike>,
+            entrypoint: Option<StringLike>,
+            condition: Option<StringLike>,
+            working_directory: Option<StringLike>,
             shell: Option<String>,
             id: Option<String>,
-            env: Option<PyMap<String, String>>,
-            continue_on_error: Option<bool>,
-            timeout_minutes: Option<i64>,
+            env: Option<PyMap<String, StringLike>>,
+            continue_on_error: Option<BoolLike>,
+            timeout_minutes: Option<IntLike>,
         ) -> PyResult<Step> {
             let mut options = Hash::new();
             if tool.is_empty() {
@@ -5405,31 +5516,41 @@ mod lupo {
                     "at least one 'tool' must be specified",
                 ));
             }
-            options.insert_yaml("tool", tool.join(","));
+            options.insert_yaml(
+                "tool",
+                tool.iter()
+                    .map(|s| s.to_string())
+                    .collect::<Vec<String>>()
+                    .join(","),
+            );
             options.insert_yaml_opt("checksum", checksum);
             options.insert_yaml_opt(
                 "fallback",
                 fallback
                     .map(|fb| {
-                        if matches!(
-                            fb.to_lowercase().as_ref(),
-                            "none" | "cargo-binstall" | "cargo-install"
-                        ) {
-                            Ok(fb)
-                        } else {
-                            Err(PyValueError::new_err(
+                        if let Either::B(fb) = fb {
+                            if matches!(
+                                fb.to_lowercase().as_ref(),
+                                "none" | "cargo-binstall" | "cargo-install"
+                            ) {
+                                Ok(Either::B(fb))
+                            } else {
+                                Err(PyValueError::new_err(
                                 "'fallback' must be 'none', 'cargo-binstall' or 'cargo-install'",
                             ))
+                            }
+                        } else {
+                            Ok(fb)
                         }
                     })
                     .transpose()?,
             );
 
             make_action(
-                name.unwrap_or(format!(
+                name.unwrap_or(Either::B(format!(
                     "Install Rust Tool{}",
                     if tool.len() > 1 { "s" } else { "" }
-                )),
+                ))),
                 "taiki-e/install-action".to_string(),
                 Some(version),
                 Some(options),
@@ -5448,41 +5569,41 @@ mod lupo {
         #[pyfunction]
         #[pyo3(signature = (*, name=None, version="v7".to_string(), uv_version=None, uv_version_file=None, resolution_strategy=None, python_version=None, activate_environment=None, uv_working_directory=None, checksum=None, github_token=None, enable_cache=None, cache_dependency_glob=None, restore_cache=None, save_cache=None, cache_suffix=None, cache_local_path=None, prune_cache=None, cache_python=None, ignore_nothing_to_cache=None, ignore_empty_workdir=None, tool_dir=None, tool_bin_dir=None, manifest_file=None, add_problem_matchers=None, args=None, entrypoint=None, condition=None, working_directory=None, shell=None, id=None, env=None, continue_on_error=None, timeout_minutes=None))]
         fn setup_uv(
-            name: Option<String>,
+            name: Option<StringLike>,
             version: String,
 
-            uv_version: Option<String>,
-            uv_version_file: Option<String>,
-            resolution_strategy: Option<String>,
-            python_version: Option<String>,
-            activate_environment: Option<bool>,
-            uv_working_directory: Option<String>,
-            checksum: Option<String>,
-            github_token: Option<String>,
-            enable_cache: Option<BoolOrString>,
-            cache_dependency_glob: Option<Vec<String>>,
-            restore_cache: Option<bool>,
-            save_cache: Option<bool>,
-            cache_suffix: Option<String>,
-            cache_local_path: Option<String>,
-            prune_cache: Option<bool>,
-            cache_python: Option<bool>,
-            ignore_nothing_to_cache: Option<bool>,
-            ignore_empty_workdir: Option<bool>,
-            tool_dir: Option<String>,
-            tool_bin_dir: Option<String>,
-            manifest_file: Option<String>,
-            add_problem_matchers: Option<bool>,
+            uv_version: Option<StringLike>,
+            uv_version_file: Option<StringLike>,
+            resolution_strategy: Option<StringLike>,
+            python_version: Option<StringLike>,
+            activate_environment: Option<BoolLike>,
+            uv_working_directory: Option<StringLike>,
+            checksum: Option<StringLike>,
+            github_token: Option<StringLike>,
+            enable_cache: Option<Either<StringLike, BoolLike>>,
+            cache_dependency_glob: Option<Vec<StringLike>>,
+            restore_cache: Option<BoolLike>,
+            save_cache: Option<BoolLike>,
+            cache_suffix: Option<StringLike>,
+            cache_local_path: Option<StringLike>,
+            prune_cache: Option<BoolLike>,
+            cache_python: Option<BoolLike>,
+            ignore_nothing_to_cache: Option<BoolLike>,
+            ignore_empty_workdir: Option<BoolLike>,
+            tool_dir: Option<StringLike>,
+            tool_bin_dir: Option<StringLike>,
+            manifest_file: Option<StringLike>,
+            add_problem_matchers: Option<BoolLike>,
 
-            args: Option<String>,
-            entrypoint: Option<String>,
-            condition: Option<String>,
-            working_directory: Option<String>,
+            args: Option<StringLike>,
+            entrypoint: Option<StringLike>,
+            condition: Option<StringLike>,
+            working_directory: Option<StringLike>,
             shell: Option<String>,
             id: Option<String>,
-            env: Option<PyMap<String, String>>,
-            continue_on_error: Option<bool>,
-            timeout_minutes: Option<i64>,
+            env: Option<PyMap<String, StringLike>>,
+            continue_on_error: Option<BoolLike>,
+            timeout_minutes: Option<IntLike>,
         ) -> PyResult<Step> {
             let mut options = Hash::new();
             options.insert_yaml_opt("version", uv_version);
@@ -5491,12 +5612,16 @@ mod lupo {
                 "resolution-strategy",
                 resolution_strategy
                     .map(|rs| {
-                        if matches!(rs.to_lowercase().as_ref(), "highest" | "lowest") {
-                            Ok(rs)
+                        if let Either::B(rs) = rs {
+                            if matches!(rs.to_lowercase().as_ref(), "highest" | "lowest") {
+                                Ok(Either::B(rs))
+                            } else {
+                                Err(PyValueError::new_err(
+                                    "'resolution_strategy' must be 'highest' or 'lowest'",
+                                ))
+                            }
                         } else {
-                            Err(PyValueError::new_err(
-                                "'resolution_strategy' must be 'highest' or 'lowest'",
-                            ))
+                            Ok(rs)
                         }
                     })
                     .transpose()?,
@@ -5510,22 +5635,31 @@ mod lupo {
                 "enable-cache",
                 enable_cache
                     .map(|ec| match ec {
-                        BoolOrString::Bool(b) => Ok(Yaml::Boolean(b)),
-                        BoolOrString::String(s) => {
-                            if s.to_lowercase() == "auto" {
-                                Ok(Yaml::String("auto".to_string()))
+                        Either::A(stringlike) => {
+                            if let Either::B(s) = stringlike {
+                                if s.to_lowercase() == "auto" {
+                                    Ok(Yaml::String("auto".to_string()))
+                                } else {
+                                    Err(PyValueError::new_err(
+                                        "'enable_cache' must be 'auto', true or false",
+                                    ))
+                                }
                             } else {
-                                Err(PyValueError::new_err(
-                                    "'enable_cache' must be 'auto', true or false",
-                                ))
+                                Ok(stringlike.as_yaml())
                             }
                         }
+                        Either::B(boollike) => Ok(boollike.as_yaml()),
                     })
                     .transpose()?,
             );
             options.insert_yaml_opt(
                 "cache-dependency-glob",
-                cache_dependency_glob.map(|cdg| cdg.join("\n")),
+                cache_dependency_glob.map(|cdg| {
+                    cdg.iter()
+                        .map(|s| s.to_string())
+                        .collect::<Vec<String>>()
+                        .join("\n")
+                }),
             );
             options.insert_yaml_opt("restore-cache", restore_cache);
             options.insert_yaml_opt("save-cache", save_cache);
@@ -5541,7 +5675,7 @@ mod lupo {
             options.insert_yaml_opt("add-problem-matchers", add_problem_matchers);
 
             make_action(
-                name.unwrap_or("Setup uv".to_string()),
+                name.unwrap_or(Either::B("Setup uv".to_string())),
                 "astral-sh/setup-uv".to_string(),
                 Some(version),
                 if options.is_empty() {
