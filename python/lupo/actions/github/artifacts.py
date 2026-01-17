@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, TypeAlias
 
 from ..._lupo import Step
-from ..._lupo import action as _action
+from ..._lupo import action
 from ...expressions import BooleanExpression, NumberExpression, StringExpression
 
 if TYPE_CHECKING:
@@ -93,7 +93,7 @@ def upload_artifact(
         artifact_label: StringLike = artifact_name or 'Artifact'
         name = f'Upload {artifact_label}'
 
-    return _action(
+    return action(
         name,
         'actions/upload-artifact',
         ref=version,
@@ -165,7 +165,7 @@ def upload_artifact_merge(
         artifact_label: StringLike = artifact_name or 'Artifacts'
         name = f'Upload (merged) {artifact_label}'
 
-    return _action(
+    return action(
         name,
         'actions/upload-artifact/merge',
         ref=version,
@@ -222,7 +222,7 @@ def download_artifact(
         artifact_label: StringLike = artifact_name or 'Artifact'
         name = f'Download {artifact_label}'
 
-    return _action(
+    return action(
         name,
         'actions/download-artifact',
         ref=version,

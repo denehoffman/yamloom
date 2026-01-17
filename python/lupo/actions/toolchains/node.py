@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, TypeAlias
 
 from ..._lupo import Step
-from ..._lupo import action as _action
+from ..._lupo import action
 from ...expressions import BooleanExpression, NumberExpression, StringExpression
 
 if TYPE_CHECKING:
@@ -79,7 +79,7 @@ def setup_node(
     if name is None:
         name = 'Setup Node'
 
-    return _action(
+    return action(
         name,
         'actions/setup-node',
         ref=version,

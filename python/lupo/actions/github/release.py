@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, TypeAlias
 
 from ..._lupo import Step
-from ..._lupo import action as _action
+from ..._lupo import action
 from ...expressions import BooleanExpression, NumberExpression, StringExpression
 
 if TYPE_CHECKING:
@@ -78,7 +78,7 @@ def release(
     if name is None:
         name = f"Make Release for '{repository}'" if repository else 'Make Release'
 
-    return _action(
+    return action(
         name,
         'actions/checkout',
         ref=version,

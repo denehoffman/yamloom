@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, TypeAlias
 
 from ..._lupo import Step
-from ..._lupo import action as _action
+from ..._lupo import action
 from ...expressions import BooleanExpression, NumberExpression, StringExpression
 
 if TYPE_CHECKING:
@@ -62,7 +62,7 @@ def cache(
         merged_env['SEGMENT_DOWNLOAD_TIMEOUT_MINS'] = str(segment_download_timeout_mins)
         env = merged_env
 
-    return _action(
+    return action(
         name,
         'actions/cache',
         ref=version,
@@ -118,7 +118,7 @@ def cache_save(
         merged_env['SEGMENT_DOWNLOAD_TIMEOUT_MINS'] = str(segment_download_timeout_mins)
         env = merged_env
 
-    return _action(
+    return action(
         name,
         'actions/cache/save',
         ref=version,
@@ -174,7 +174,7 @@ def cache_restore(
         merged_env['SEGMENT_DOWNLOAD_TIMEOUT_MINS'] = str(segment_download_timeout_mins)
         env = merged_env
 
-    return _action(
+    return action(
         name,
         'actions/cache/restore',
         ref=version,

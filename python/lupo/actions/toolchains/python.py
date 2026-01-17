@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, TypeAlias
 
 from ..._lupo import Step
-from ..._lupo import action as _action
+from ..._lupo import action
 from ...expressions import BooleanExpression, NumberExpression, StringExpression
 
 if TYPE_CHECKING:
@@ -82,7 +82,7 @@ def setup_python(
     if name is None:
         name = 'Setup Python'
 
-    return _action(
+    return action(
         name,
         'actions/setup-python',
         ref=version,
@@ -188,7 +188,7 @@ def setup_uv(
     if name is None:
         name = 'Setup uv'
 
-    return _action(
+    return action(
         name,
         'astral-sh/setup-uv',
         ref=version,

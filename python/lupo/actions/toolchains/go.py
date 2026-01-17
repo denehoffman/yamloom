@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, TypeAlias
 
 from ..._lupo import Step
-from ..._lupo import action as _action
+from ..._lupo import action
 from ...expressions import BooleanExpression, NumberExpression, StringExpression
 
 if TYPE_CHECKING:
@@ -58,7 +58,7 @@ def setup_go(
     if name is None:
         name = 'Setup Go'
 
-    return _action(
+    return action(
         name,
         'actions/setup-go',
         ref=version,
