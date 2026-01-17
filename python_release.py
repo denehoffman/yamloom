@@ -14,20 +14,33 @@ from lupo import (  # noqa: INP001
     action,
     script,
 )
-from lupo.actions import checkout, download_artifact, upload_artifact
+from lupo.actions.github.artifacts import download_artifact, upload_artifact
+from lupo.actions.github.scm import checkout
+from lupo.actions.toolchains.python import setup_python, setup_uv
 from lupo.expressions import context
-from lupo.toolchains import setup_python, setup_uv
 
 cpu_platforms = {
-    'linux': [{'runner': 'ubuntu', 'target': arch} for arch in ['x86_64', 'x86', 'aarch64', 'armv7', 's390x']],
-    'musllinux': [{'runner': 'ubuntu', 'target': arch} for arch in ['x86_64', 'x86', 'aarch64', 'armv7']],
+    'linux': [
+        {'runner': 'ubuntu', 'target': arch}
+        for arch in ['x86_64', 'x86', 'aarch64', 'armv7', 's390x']
+    ],
+    'musllinux': [
+        {'runner': 'ubuntu', 'target': arch}
+        for arch in ['x86_64', 'x86', 'aarch64', 'armv7']
+    ],
     'windows': [{'runner': 'windows-latest', 'target': 'x64'}],
-    'macos': [{'runner': 'macos-15-intel', 'target': 'x86_64'}, {'runner': 'macos-latest', 'target': 'aarch64'}],
+    'macos': [
+        {'runner': 'macos-15-intel', 'target': 'x86_64'},
+        {'runner': 'macos-latest', 'target': 'aarch64'},
+    ],
 }
 mpi_platforms = {
     'linux': [{'runner': 'ubuntu', 'target': 'x86_64'}],
     'windows': [{'runner': 'windows-latest', 'target': 'x64'}],
-    'macos': [{'runner': 'macos-15-intel', 'target': 'x86_64'}, {'runner': 'macos-latest', 'target': 'aarch64'}],
+    'macos': [
+        {'runner': 'macos-15-intel', 'target': 'x86_64'},
+        {'runner': 'macos-latest', 'target': 'aarch64'},
+    ],
 }
 
 
@@ -78,7 +91,10 @@ print(
                         build_wheels(os, 'py-laddu-cpu'),
                         setup_python(python_version='3.13', freethreaded=True),
                         build_wheels(os, 'py-laddu-cpu', free_threaded=True),
-                        upload_artifact(path='dist', artifact_name=f'cpu-{os}-{context.matrix["platform"]["target"]}'),
+                        upload_artifact(
+                            path='dist',
+                            artifact_name=f'cpu-{os}-{context.matrix["platform"]["target"]}',
+                        ),
                     ],
                     condition=(context.github.event_name == 'pull_request')
                     | ~context.github.event['pull_request']['draft'].as_bool(),
@@ -106,7 +122,10 @@ print(
                         build_wheels(os, 'py-laddu-mpi'),
                         setup_python(python_version='3.13', freethreaded=True),
                         build_wheels(os, 'py-laddu-mpi', free_threaded=True),
-                        upload_artifact(path='dist', artifact_name=f'mpi-{os}-{context.matrix["platform"]["target"]}'),
+                        upload_artifact(
+                            path='dist',
+                            artifact_name=f'mpi-{os}-{context.matrix["platform"]["target"]}',
+                        ),
                     ],
                     condition=(context.github.event_name == 'pull_request')
                     | ~context.github.event['pull_request']['draft'].as_bool(),
@@ -137,10 +156,23 @@ print(
                         'cp cpu-*/* dist/cpu/',
                         'cp mpi-*/* dist/mpi/',
                     ),
-                    script('Publish py-laddu-cpu to PyPI', 'uv publish --trusted-publishing always dist/cpu/*'),
-                    script('Publish py-laddu-mpi to PyPI', 'uv publish --trusted-publishing always dist/mpi/*'),
-                    script('Build py-laddu sdist', 'mkdir -p dist/laddu', 'uv build py-laddu --out-dir dist/laddu'),
-                    script('Publish py-laddu to PyPI', 'uv publish --trusted-publishing always dist/laddu/*'),
+                    script(
+                        'Publish py-laddu-cpu to PyPI',
+                        'uv publish --trusted-publishing always dist/cpu/*',
+                    ),
+                    script(
+                        'Publish py-laddu-mpi to PyPI',
+                        'uv publish --trusted-publishing always dist/mpi/*',
+                    ),
+                    script(
+                        'Build py-laddu sdist',
+                        'mkdir -p dist/laddu',
+                        'uv build py-laddu --out-dir dist/laddu',
+                    ),
+                    script(
+                        'Publish py-laddu to PyPI',
+                        'uv publish --trusted-publishing always dist/laddu/*',
+                    ),
                 ],
                 name='Release',
                 runs_on='ubuntu-latest',
@@ -153,7 +185,9 @@ print(
         },
         on=Events(
             push=PushEvent(branches=['main']),
-            pull_request=PullRequestEvent(opened=True, reopened=True, ready_for_review=True, synchronize=True),
+            pull_request=PullRequestEvent(
+                opened=True, reopened=True, ready_for_review=True, synchronize=True
+            ),
             workflow_dispatch=WorkflowDispatchEvent(),
         ),
         concurrency=Concurrency(

@@ -1,6 +1,6 @@
 from collections.abc import Mapping, Sequence
 from types import ModuleType
-from typing import Literal, Any
+from typing import Any, Literal
 
 from typing_extensions import TypeAlias
 
@@ -22,8 +22,6 @@ Oboollike: TypeAlias = BoolLike | None
 Ointlike: TypeAlias = IntLike | None
 StringOrBoolLike: TypeAlias = StringLike | BoolLike
 
-actions: ModuleType
-toolchains: ModuleType
 expressions: ModuleType
 
 class Step: ...
@@ -103,22 +101,39 @@ class Environment:
     def __init__(self, name: StringLike, url: Ostrlike = None) -> None: ...
 
 class Concurrency:
-    def __init__(self, group: StringLike, *, cancel_in_progress: Oboollike = None) -> None: ...
+    def __init__(
+        self, group: StringLike, *, cancel_in_progress: Oboollike = None
+    ) -> None: ...
 
 class RunDefaults:
-    def __init__(self, *, shell: Ostrlike = None, working_directory: Ostrlike = None) -> None: ...
+    def __init__(
+        self, *, shell: Ostrlike = None, working_directory: Ostrlike = None
+    ) -> None: ...
 
 class Defaults:
     def __init__(
-        self, *, defaults: Mapping[str, str] | None = None, run_defaults: RunDefaults | None = None
+        self,
+        *,
+        defaults: Mapping[str, str] | None = None,
+        run_defaults: RunDefaults | None = None,
     ) -> None: ...
 
 class Matrix:
-    def __init__(self, *, include: Sequence | None = None, exclude: Sequence | None = None, **matrix: Any) -> None: ...
+    def __init__(
+        self,
+        *,
+        include: Sequence | None = None,
+        exclude: Sequence | None = None,
+        **matrix: Any,
+    ) -> None: ...
 
 class Strategy:
     def __init__(
-        self, *, matrix: Matrix | None = None, fast_fail: Oboollike = None, max_parallel: Ointlike = None
+        self,
+        *,
+        matrix: Matrix | None = None,
+        fast_fail: Oboollike = None,
+        max_parallel: Ointlike = None,
     ) -> None: ...
 
 class Credentials:
@@ -168,7 +183,9 @@ class Job:
     ) -> None: ...
 
 class BranchProtectionRuleEvent:
-    def __init__(self, *, created: bool = False, edited: bool = False, deleted: bool = False) -> None: ...
+    def __init__(
+        self, *, created: bool = False, edited: bool = False, deleted: bool = False
+    ) -> None: ...
 
 class CheckRunEvent:
     def __init__(
@@ -203,13 +220,22 @@ class DiscussionEvent:
     ) -> None: ...
 
 class DiscussionCommentEvent:
-    def __init__(self, *, created: bool = False, edited: bool = False, deleted: bool = False) -> None: ...
+    def __init__(
+        self, *, created: bool = False, edited: bool = False, deleted: bool = False
+    ) -> None: ...
 
 class ImageVersionEvent:
-    def __init__(self, *, names: Sequence[str] | None = None, versions: Sequence[str] | None = None) -> None: ...
+    def __init__(
+        self,
+        *,
+        names: Sequence[str] | None = None,
+        versions: Sequence[str] | None = None,
+    ) -> None: ...
 
 class IssueCommentEvent:
-    def __init__(self, *, created: bool = False, edited: bool = False, deleted: bool = False) -> None: ...
+    def __init__(
+        self, *, created: bool = False, edited: bool = False, deleted: bool = False
+    ) -> None: ...
 
 class IssuesEvent:
     def __init__(
@@ -236,7 +262,9 @@ class IssuesEvent:
     ) -> None: ...
 
 class LabelEvent:
-    def __init__(self, *, created: bool = False, edited: bool = False, deleted: bool = False) -> None: ...
+    def __init__(
+        self, *, created: bool = False, edited: bool = False, deleted: bool = False
+    ) -> None: ...
 
 class MergeGroupEvent:
     def __init__(self, *, checks_requested: bool = False) -> None: ...
@@ -284,10 +312,14 @@ class PullRequestEvent:
     ) -> None: ...
 
 class PullRequestReviewEvent:
-    def __init__(self, *, submitted: bool = False, edited: bool = False, dismissed: bool = False) -> None: ...
+    def __init__(
+        self, *, submitted: bool = False, edited: bool = False, dismissed: bool = False
+    ) -> None: ...
 
 class PullRequestReviewCommentEvent:
-    def __init__(self, *, created: bool = False, edited: bool = False, deleted: bool = False) -> None: ...
+    def __init__(
+        self, *, created: bool = False, edited: bool = False, deleted: bool = False
+    ) -> None: ...
 
 class PushEvent:
     def __init__(
@@ -374,11 +406,17 @@ class WatchEvent:
 
 class WorkflowInput:
     @staticmethod
-    def boolean(*, description: Ostr = None, default: Oboollike = None, required: Obool = None) -> WorkflowInput: ...
+    def boolean(
+        *, description: Ostr = None, default: Oboollike = None, required: Obool = None
+    ) -> WorkflowInput: ...
     @staticmethod
-    def number(*, description: Ostr = None, default: Ointlike = None, required: Obool = None) -> WorkflowInput: ...
+    def number(
+        *, description: Ostr = None, default: Ointlike = None, required: Obool = None
+    ) -> WorkflowInput: ...
     @staticmethod
-    def string(*, description: Ostr = None, default: Ostrlike = None, required: Obool = None) -> WorkflowInput: ...
+    def string(
+        *, description: Ostr = None, default: Ostrlike = None, required: Obool = None
+    ) -> WorkflowInput: ...
 
 class WorkflowOutput:
     def __init__(self, value: StringLike, *, description: Ostr = None) -> None: ...
@@ -402,17 +440,29 @@ class WorkflowDispatchInput:
     ) -> WorkflowDispatchInput: ...
     @staticmethod
     def choice(
-        options: Sequence[str], *, description: Ostr = None, default: Ostr = None, required: Obool = None
+        options: Sequence[str],
+        *,
+        description: Ostr = None,
+        default: Ostr = None,
+        required: Obool = None,
     ) -> WorkflowDispatchInput: ...
     @staticmethod
-    def number(*, description: Ostr = None, default: Oint = None, required: Obool = None) -> WorkflowDispatchInput: ...
+    def number(
+        *, description: Ostr = None, default: Oint = None, required: Obool = None
+    ) -> WorkflowDispatchInput: ...
     @staticmethod
-    def environment(*, description: Ostr = None, required: Obool = None) -> WorkflowDispatchInput: ...
+    def environment(
+        *, description: Ostr = None, required: Obool = None
+    ) -> WorkflowDispatchInput: ...
     @staticmethod
-    def string(*, description: Ostr = None, default: Ostr = None, required: Obool = None) -> WorkflowDispatchInput: ...
+    def string(
+        *, description: Ostr = None, default: Ostr = None, required: Obool = None
+    ) -> WorkflowDispatchInput: ...
 
 class WorkflowDispatchEvent:
-    def __init__(self, *, inputs: Mapping[str, WorkflowDispatchInput] | None = None) -> None: ...
+    def __init__(
+        self, *, inputs: Mapping[str, WorkflowDispatchInput] | None = None
+    ) -> None: ...
 
 class WorkflowRunEvent:
     def __init__(
@@ -528,7 +578,5 @@ __all__ = [
     'WorkflowRunEvent',
     'WorkflowSecret',
     'action',
-    'actions',
     'script',
-    'toolchains',
 ]

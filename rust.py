@@ -8,9 +8,10 @@ from lupo import (  # noqa: INP001
     WorkflowDispatchEvent,
     script,
 )
-from lupo.actions import checkout
+from lupo.actions.github.scm import checkout
+from lupo.actions.toolchains.python import setup_uv
+from lupo.actions.toolchains.rust import install_rust_tool, setup_rust
 from lupo.expressions import context
-from lupo.toolchains import install_rust_tool, setup_rust, setup_uv
 
 print(
     Workflow(
@@ -18,7 +19,10 @@ print(
             'clippy': Job(
                 [
                     checkout(),
-                    script('Install OpenMPI', 'sudo apt update\nsudo apt install -y clang libopenmpi-dev'),
+                    script(
+                        'Install OpenMPI',
+                        'sudo apt update\nsudo apt install -y clang libopenmpi-dev',
+                    ),
                     setup_rust(components=['clippy']),
                     install_rust_tool(tool=['just']),
                     script('Run Clippy', 'just clippy'),
@@ -28,7 +32,10 @@ print(
             'build-check-test': Job(
                 [
                     checkout(),
-                    script('Install OpenMPI', 'sudo apt update\nsudo apt install -y clang libopenmpi-dev'),
+                    script(
+                        'Install OpenMPI',
+                        'sudo apt update\nsudo apt install -y clang libopenmpi-dev',
+                    ),
                     setup_rust(components=['clippy']),
                     install_rust_tool(tool=['just']),
                     install_rust_tool(tool=['just', 'cargo-hack', 'nextest']),
@@ -43,7 +50,9 @@ print(
         },
         on=Events(
             push=PushEvent(branches=['main'], tags=['*']),
-            pull_request=PullRequestEvent(opened=True, reopened=True, synchronize=True, ready_for_review=True),
+            pull_request=PullRequestEvent(
+                opened=True, reopened=True, synchronize=True, ready_for_review=True
+            ),
             workflow_dispatch=WorkflowDispatchEvent(),
         ),
         env={'CARGO_TERM_COLOR': 'always'},

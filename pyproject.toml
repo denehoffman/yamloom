@@ -15,3 +15,7 @@ dynamic = ["version"]
 [tool.maturin]
 python-source = "python"
 module-name = "lupo._lupo"
+
+
+[tool.ruff.format]
+quote-style = "single"

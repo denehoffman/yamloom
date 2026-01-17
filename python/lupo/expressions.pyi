@@ -1,9 +1,9 @@
 from collections.abc import Sequence
 from typing import ClassVar, TypeAlias
 
-BoolLike: TypeAlias = bool | 'BooleanExpression'
-NumberLike: TypeAlias = float | int | 'NumberExpression'
-StringLike: TypeAlias = str | 'StringExpression'
+BoolLike: TypeAlias = bool | BooleanExpression
+NumberLike: TypeAlias = float | int | NumberExpression
+StringLike: TypeAlias = str | StringExpression
 
 class BooleanExpression:
     def as_num(self) -> NumberExpression: ...
@@ -44,7 +44,9 @@ class StringExpression:
     def from_json_to_str(self) -> StringExpression: ...
     def from_json_to_array(self) -> ArrayExpression: ...
     def from_json_to_obj(self) -> ObjectExpression: ...
-    def hash_files(self, others: Sequence[StringLike] | None = None) -> StringExpression: ...
+    def hash_files(
+        self, others: Sequence[StringLike] | None = None
+    ) -> StringExpression: ...
 
 class ArrayExpression:
     def as_num(self) -> NumberExpression: ...

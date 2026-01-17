@@ -10,9 +10,11 @@ from lupo import (  # noqa: INP001
     action,
     script,
 )
-from lupo.actions import checkout, download_artifact, upload_artifact
+from lupo.actions.github.artifacts import download_artifact, upload_artifact
+from lupo.actions.github.scm import checkout
+from lupo.actions.toolchains.python import setup_uv
+from lupo.actions.toolchains.rust import install_rust_tool, setup_rust
 from lupo.expressions import context
-from lupo.toolchains import install_rust_tool, setup_rust, setup_uv
 
 print(
     Workflow(
@@ -21,11 +23,15 @@ print(
             'coverage-rust': Job(
                 [
                     checkout(),
-                    script('Install MPICH', 'sudo apt install -y clang mpich libmpich-dev'),
+                    script(
+                        'Install MPICH', 'sudo apt install -y clang mpich libmpich-dev'
+                    ),
                     setup_rust(toolchain='nightly'),
                     install_rust_tool(tool=['just', 'cargo-llvm-cov']),
                     script('Generate Rust code coverage', 'just coverage-rust'),
-                    upload_artifact(path='coverage-rust.lcov', artifact_name='coverage-rust'),
+                    upload_artifact(
+                        path='coverage-rust.lcov', artifact_name='coverage-rust'
+                    ),
                 ],
                 runs_on='ubuntu-latest',
                 env={'CARGO_TERM_COLOR': 'always'},
@@ -37,7 +43,9 @@ print(
                     setup_rust(toolchain='stable'),
                     install_rust_tool(tool=['just']),
                     script('Generate Python code coverage', 'just coverage-python'),
-                    upload_artifact(path='coverage-python.xml', artifact_name='coverage-python'),
+                    upload_artifact(
+                        path='coverage-python.xml', artifact_name='coverage-python'
+                    ),
                 ],
                 runs_on='ubuntu-latest',
             ),
@@ -63,9 +71,16 @@ print(
             ),
         },
         on=Events(
-            pull_request=PullRequestEvent(paths=['**.rs', '**.py', '.github/workflows/coverage.yml']),
-            push=PushEvent(branches=['main'], paths=['**.rs', '**.py', '.github/workflows/coverage.yml']),
-            workflow_call=WorkflowCallEvent(secrets={'codecov_token': WorkflowSecret(required=True)}),
+            pull_request=PullRequestEvent(
+                paths=['**.rs', '**.py', '.github/workflows/coverage.yml']
+            ),
+            push=PushEvent(
+                branches=['main'],
+                paths=['**.rs', '**.py', '.github/workflows/coverage.yml'],
+            ),
+            workflow_call=WorkflowCallEvent(
+                secrets={'codecov_token': WorkflowSecret(required=True)}
+            ),
             workflow_dispatch=WorkflowDispatchEvent(),
         ),
     )
