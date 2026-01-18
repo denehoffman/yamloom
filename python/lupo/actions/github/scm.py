@@ -1,24 +1,21 @@
 from __future__ import annotations
+from lupo.actions.utils import check_string
 
-from typing import TYPE_CHECKING, TypeAlias
+from typing import TYPE_CHECKING
 
 from ..._lupo import Step
 from ..._lupo import action
-from ...expressions import BooleanExpression, NumberExpression, StringExpression
+from ..types import (
+    Oboollike,
+    Oboolstr,
+    Ointlike,
+    Ostr,
+    Ostrlike,
+    StringLike,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
-
-Ostr: TypeAlias = str | None
-Obool: TypeAlias = bool | None
-Oint: TypeAlias = int | None
-StringLike: TypeAlias = str | StringExpression
-BoolLike: TypeAlias = bool | BooleanExpression
-IntLike: TypeAlias = int | NumberExpression
-Ostrlike: TypeAlias = StringLike | None
-Oboolstr: TypeAlias = BooleanExpression | str | None
-Oboollike: TypeAlias = BoolLike | None
-Ointlike: TypeAlias = IntLike | None
 
 __all__ = ['checkout']
 
@@ -82,8 +79,11 @@ def checkout(
     options = {key: value for key, value in options.items() if value is not None}
 
     if name is None:
-        repo_label: StringLike = repository or 'Repository'
-        name = f'Checkout {repo_label}'
+        repository_str = check_string(options.get('repository'))
+        if repository_str:
+            name = f"Checkout '{repository_str}'"
+        else:
+            name = 'Checkout Repository'
 
     return action(
         name,

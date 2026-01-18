@@ -1,24 +1,21 @@
 from __future__ import annotations
+from lupo.actions.utils import validate_choice
 
-from typing import TYPE_CHECKING, TypeAlias
+from typing import TYPE_CHECKING
 
 from ..._lupo import Step
 from ..._lupo import action
-from ...expressions import BooleanExpression, NumberExpression, StringExpression
+from ..types import (
+    Oboollike,
+    Oboolstr,
+    Ointlike,
+    Ostr,
+    Ostrlike,
+    StringLike,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
-
-Ostr: TypeAlias = str | None
-Obool: TypeAlias = bool | None
-Oint: TypeAlias = int | None
-StringLike: TypeAlias = str | StringExpression
-BoolLike: TypeAlias = bool | BooleanExpression
-IntLike: TypeAlias = int | NumberExpression
-Ostrlike: TypeAlias = StringLike | None
-Oboolstr: TypeAlias = BooleanExpression | str | None
-Oboollike: TypeAlias = BoolLike | None
-Ointlike: TypeAlias = IntLike | None
 
 __all__ = ['install_rust_tool', 'setup_rust']
 
@@ -71,7 +68,9 @@ def setup_rust(
         'cache-key': cache_key,
         'cache-shared-key': cache_shared_key,
         'cache-bin': cache_bin,
-        'cache-provider': cache_provider,
+        'cache-provider': validate_choice(
+            'cache_provider', cache_provider, ['github', 'buildjet', 'warpbuild']
+        ),
         'cache-all-crates': cache_all_crates,
         'cache-workspace-crates': cache_workspace_crates,
         'matcher': matcher,
@@ -79,16 +78,6 @@ def setup_rust(
         'override': override,
         'rust-src-dir': rust_src_dir,
     }
-
-    if cache_provider is not None:
-        if isinstance(cache_provider, str):
-            lowered = cache_provider.lower()
-            if lowered not in {'github', 'buildjet', 'warpbuild'}:
-                msg = "'cache-provider' must be 'github', 'buildjet' or 'warpbuild'"
-                raise ValueError(msg)
-            options['cache-provider'] = cache_provider
-        else:
-            options['cache-provider'] = cache_provider
 
     options = {key: value for key, value in options.items() if value is not None}
 
@@ -136,18 +125,10 @@ def install_rust_tool(
     options: dict[str, object] = {
         'tool': ','.join(str(s) for s in tool),
         'checksum': checksum,
-        'fallback': fallback,
+        'fallback': validate_choice(
+            'fallback', fallback, ['none', 'cargo-binstall', 'cargo-install']
+        ),
     }
-
-    if fallback is not None:
-        if isinstance(fallback, str):
-            lowered = fallback.lower()
-            if lowered not in {'none', 'cargo-binstall', 'cargo-install'}:
-                msg = "'fallback' must be 'none', 'cargo-binstall' or 'cargo-install'"
-                raise ValueError(msg)
-            options['fallback'] = fallback
-        else:
-            options['fallback'] = fallback
 
     options = {key: value for key, value in options.items() if value is not None}
 

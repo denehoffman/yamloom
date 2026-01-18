@@ -1,27 +1,24 @@
 from __future__ import annotations
+from lupo.actions.utils import validate_choice, check_string
 
-from typing import TYPE_CHECKING, TypeAlias
+from typing import TYPE_CHECKING
 
 from ..._lupo import Step
 from ..._lupo import action
-from ...expressions import BooleanExpression, NumberExpression, StringExpression
+from ..types import (
+    Oboollike,
+    Oboolstr,
+    Ointlike,
+    Ostr,
+    Ostrlike,
+    StringLike,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
 WARN_RETENTION_DAYS: int = 90
 MAX_COMPRESSION_LEVEL: int = 9
-
-Ostr: TypeAlias = str | None
-Obool: TypeAlias = bool | None
-Oint: TypeAlias = int | None
-StringLike: TypeAlias = str | StringExpression
-BoolLike: TypeAlias = bool | BooleanExpression
-IntLike: TypeAlias = int | NumberExpression
-Ostrlike: TypeAlias = StringLike | None
-Oboolstr: TypeAlias = BooleanExpression | str | None
-Oboollike: TypeAlias = BoolLike | None
-Ointlike: TypeAlias = IntLike | None
 
 __all__ = ['download_artifact', 'upload_artifact', 'upload_artifact_merge']
 
@@ -50,22 +47,14 @@ def upload_artifact(
     options: dict[str, object] = {
         'path': path,
         'name': artifact_name,
-        'if_no_files_found': if_no_files_found,
+        'if_no_files_found': validate_choice(
+            'if_no_files_found', if_no_files_found, ['warn', 'error', 'ignore']
+        ),
         'retention-days': retention_days,
         'compression-level': compression_level,
         'overwrite': overwrite,
         'include-hidden-files': include_hidden_files,
     }
-
-    if if_no_files_found is not None:
-        if isinstance(if_no_files_found, str):
-            lowered = if_no_files_found.lower()
-            if lowered not in {'warn', 'error', 'ignore'}:
-                msg = "'if_no_files_found' must be 'warn', 'error' or 'ignore'"
-                raise ValueError(msg)
-            options['if_no_files_found'] = lowered
-        else:
-            options['if_no_files_found'] = if_no_files_found
 
     if retention_days is not None:
         if isinstance(retention_days, int) and not isinstance(retention_days, bool):
@@ -90,8 +79,11 @@ def upload_artifact(
     options = {key: value for key, value in options.items() if value is not None}
 
     if name is None:
-        artifact_label: StringLike = artifact_name or 'Artifact'
-        name = f'Upload {artifact_label}'
+        artifact_str = check_string(options.get('artifact_name'))
+        if artifact_str:
+            name = f'Upload {artifact_str}'
+        else:
+            name = 'Upload Artifact'
 
     return action(
         name,
@@ -162,8 +154,11 @@ def upload_artifact_merge(
     options = {key: value for key, value in options.items() if value is not None}
 
     if name is None:
-        artifact_label: StringLike = artifact_name or 'Artifacts'
-        name = f'Upload (merged) {artifact_label}'
+        artifact_str = check_string(options.get('artifact_name'))
+        if artifact_str:
+            name = f'Upload (merged) {artifact_str}'
+        else:
+            name = 'Upload (merged) Artifact'
 
     return action(
         name,
@@ -219,8 +214,11 @@ def download_artifact(
     options = {key: value for key, value in options.items() if value is not None}
 
     if name is None:
-        artifact_label: StringLike = artifact_name or 'Artifact'
-        name = f'Download {artifact_label}'
+        artifact_str = check_string(options.get('artifact_name'))
+        if artifact_str:
+            name = f'Download {artifact_str}'
+        else:
+            name = 'Download Artifact'
 
     return action(
         name,

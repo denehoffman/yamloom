@@ -1,4 +1,5 @@
 from __future__ import annotations
+from lupo.actions.utils import validate_choice, check_string
 
 from typing import TYPE_CHECKING
 
@@ -14,22 +15,16 @@ from ..types import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Mapping, Sequence
 
-__all__ = ['setup_go']
+__all__ = ['setup_mpi']
 
 
-def setup_go(
+def setup_mpi(
     *,
     name: Ostrlike = None,
-    version: str = 'v6',
-    go_version: Ostrlike = None,
-    go_version_file: Ostrlike = None,
-    check_latest: Oboollike = None,
-    architecture: Ostrlike = None,
-    token: Ostrlike = None,
-    cache: Oboollike = None,
-    cache_dependency_path: Ostrlike = None,
+    version: str = 'v1',
+    mpi: Ostrlike = None,
     args: Ostrlike = None,
     entrypoint: Ostrlike = None,
     condition: Oboolstr = None,
@@ -41,22 +36,28 @@ def setup_go(
     timeout_minutes: Ointlike = None,
 ) -> Step:
     options: dict[str, object] = {
-        'go-version': go_version,
-        'go-version-file': go_version_file,
-        'check-latest': check_latest,
-        'architecture': architecture,
-        'token': token,
-        'cache': cache,
-        'cache-dependency-path': cache_dependency_path,
+        'mpi': validate_choice('mpi', mpi, ['mpich', 'openmpi', 'intelmpi', 'msmpi']),
     }
+
     options = {key: value for key, value in options.items() if value is not None}
 
+    mpi_names = {
+        'mpich': 'MPICH',
+        'openmpi': 'Open MPI',
+        'intelmpi': 'Intel MPI',
+        'msmpi': 'Microsoft MPI',
+    }
+
     if name is None:
-        name = 'Setup Go'
+        mpi_str = check_string(options.get('mpi'))
+        if mpi_str:
+            name = f'Setup {mpi_names[mpi_str]}'
+        else:
+            name = 'Setup MPI'
 
     return action(
         name,
-        'actions/setup-go',
+        'taiki-e/install-action',
         ref=version,
         with_opts=options,
         args=args,

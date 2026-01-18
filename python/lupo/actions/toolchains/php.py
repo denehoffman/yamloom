@@ -1,4 +1,5 @@
 from __future__ import annotations
+from lupo.actions.utils import validate_choice
 
 from typing import TYPE_CHECKING
 
@@ -16,20 +17,21 @@ from ..types import (
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-__all__ = ['setup_go']
+__all__ = ['setup_php']
 
 
-def setup_go(
+def setup_php(
     *,
     name: Ostrlike = None,
-    version: str = 'v6',
-    go_version: Ostrlike = None,
-    go_version_file: Ostrlike = None,
-    check_latest: Oboollike = None,
-    architecture: Ostrlike = None,
-    token: Ostrlike = None,
-    cache: Oboollike = None,
-    cache_dependency_path: Ostrlike = None,
+    version: str = 'v2',
+    php_version: Ostrlike = None,
+    php_version_file: Ostrlike = None,
+    extensions: Ostrlike = None,
+    ini_file: Ostrlike = None,
+    ini_values: Ostrlike = None,
+    coverage: Ostrlike = None,
+    tools: Ostrlike = None,
+    github_token: Ostrlike = None,
     args: Ostrlike = None,
     entrypoint: Ostrlike = None,
     condition: Oboolstr = None,
@@ -41,22 +43,25 @@ def setup_go(
     timeout_minutes: Ointlike = None,
 ) -> Step:
     options: dict[str, object] = {
-        'go-version': go_version,
-        'go-version-file': go_version_file,
-        'check-latest': check_latest,
-        'architecture': architecture,
-        'token': token,
-        'cache': cache,
-        'cache-dependency-path': cache_dependency_path,
+        'php-version': php_version,
+        'php-version-file': php_version_file,
+        'extensions': extensions,
+        'ini-file': validate_choice(
+            'ini_file', ini_file, ['production', 'development', 'none']
+        ),
+        'ini-values': ini_values,
+        'coverage': validate_choice('coverage', coverage, ['xdebug', 'pcov', 'none']),
+        'tools': tools,
+        'github-token': github_token,
     }
     options = {key: value for key, value in options.items() if value is not None}
 
     if name is None:
-        name = 'Setup Go'
+        name = 'Setup PHP'
 
     return action(
         name,
-        'actions/setup-go',
+        'shivammathur/setup-php',
         ref=version,
         with_opts=options,
         args=args,

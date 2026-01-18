@@ -1,24 +1,22 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, TypeAlias
+from typing import TYPE_CHECKING
 
 from ..._lupo import Step
 from ..._lupo import action
-from ...expressions import BooleanExpression, NumberExpression, StringExpression
+from ..types import (
+    Obool,
+    Oboollike,
+    Oboolstr,
+    Oint,
+    Ointlike,
+    Ostr,
+    Ostrlike,
+    StringLike,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
-
-Ostr: TypeAlias = str | None
-Obool: TypeAlias = bool | None
-Oint: TypeAlias = int | None
-StringLike: TypeAlias = str | StringExpression
-BoolLike: TypeAlias = bool | BooleanExpression
-IntLike: TypeAlias = int | NumberExpression
-Ostrlike: TypeAlias = StringLike | None
-Oboolstr: TypeAlias = BooleanExpression | str | None
-Oboollike: TypeAlias = BoolLike | None
-Ointlike: TypeAlias = IntLike | None
 
 __all__ = ['cache', 'cache_restore', 'cache_save']
 

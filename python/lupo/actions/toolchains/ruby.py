@@ -1,4 +1,5 @@
 from __future__ import annotations
+from lupo.actions.utils import validate_choice
 
 from typing import TYPE_CHECKING
 
@@ -16,20 +17,22 @@ from ..types import (
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-__all__ = ['setup_go']
+__all__ = ['setup_ruby']
 
 
-def setup_go(
+def setup_ruby(
     *,
     name: Ostrlike = None,
-    version: str = 'v6',
-    go_version: Ostrlike = None,
-    go_version_file: Ostrlike = None,
-    check_latest: Oboollike = None,
-    architecture: Ostrlike = None,
+    version: str = 'v1',
+    ruby_version: Ostrlike = None,
+    rubygems: Ostrlike = None,
+    bundler: Ostrlike = None,
+    bundler_cache: Oboollike = None,
+    ruby_working_directory: Ostrlike = None,
+    cache_version: Ostrlike = None,
+    self_hosted: Oboollike = None,
+    windows_toolchain: Ostrlike = None,
     token: Ostrlike = None,
-    cache: Oboollike = None,
-    cache_dependency_path: Ostrlike = None,
     args: Ostrlike = None,
     entrypoint: Ostrlike = None,
     condition: Oboolstr = None,
@@ -41,22 +44,26 @@ def setup_go(
     timeout_minutes: Ointlike = None,
 ) -> Step:
     options: dict[str, object] = {
-        'go-version': go_version,
-        'go-version-file': go_version_file,
-        'check-latest': check_latest,
-        'architecture': architecture,
+        'ruby-version': ruby_version,
+        'rubygems': rubygems,
+        'bundler': bundler,
+        'bundler-cache': bundler_cache,
+        'working-directory': ruby_working_directory,
+        'cache-version': cache_version,
+        'self-hosted': self_hosted,
+        'windows-toolchain': validate_choice(
+            'windows-toolchain', windows_toolchain, ['defauult', 'none']
+        ),
         'token': token,
-        'cache': cache,
-        'cache-dependency-path': cache_dependency_path,
     }
     options = {key: value for key, value in options.items() if value is not None}
 
     if name is None:
-        name = 'Setup Go'
+        name = 'Setup Ruby'
 
     return action(
         name,
-        'actions/setup-go',
+        'actions/setup-ruby',
         ref=version,
         with_opts=options,
         args=args,

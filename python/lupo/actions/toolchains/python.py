@@ -1,25 +1,22 @@
 from __future__ import annotations
+from lupo.actions.utils import validate_choice
 
-from typing import TYPE_CHECKING, TypeAlias
+from typing import TYPE_CHECKING
 
 from ..._lupo import Step
 from ..._lupo import action
-from ...expressions import BooleanExpression, NumberExpression, StringExpression
+from ..types import (
+    Oboollike,
+    Oboolstr,
+    Ointlike,
+    Ostr,
+    Ostrlike,
+    StringLike,
+    StringOrBoolLike,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
-
-Ostr: TypeAlias = str | None
-Obool: TypeAlias = bool | None
-Oint: TypeAlias = int | None
-StringLike: TypeAlias = str | StringExpression
-BoolLike: TypeAlias = bool | BooleanExpression
-IntLike: TypeAlias = int | NumberExpression
-Ostrlike: TypeAlias = StringLike | None
-Oboolstr: TypeAlias = BooleanExpression | str | None
-Oboollike: TypeAlias = BoolLike | None
-Ointlike: TypeAlias = IntLike | None
-StringOrBoolLike: TypeAlias = StringLike | BoolLike
 
 __all__ = ['setup_python', 'setup_uv']
 
@@ -138,7 +135,9 @@ def setup_uv(
     options: dict[str, object] = {
         'version': uv_version,
         'version-file': uv_version_file,
-        'resolution-strategy': resolution_strategy,
+        'resolution-strategy': validate_choice(
+            'resolution_strategy', resolution_strategy, ['highest', 'lowest']
+        ),
         'python-version': python_version,
         'activate-environment': activate_environment,
         'working-directory': uv_working_directory,
@@ -161,16 +160,6 @@ def setup_uv(
         'manifest-file': manifest_file,
         'add-problem-matchers': add_problem_matchers,
     }
-
-    if resolution_strategy is not None:
-        if isinstance(resolution_strategy, str):
-            lowered = resolution_strategy.lower()
-            if lowered not in {'highest', 'lowest'}:
-                msg = "'resolution_strategy' must be 'highest' or 'lowest'"
-                raise ValueError(msg)
-            options['resolution-strategy'] = resolution_strategy
-        else:
-            options['resolution-strategy'] = resolution_strategy
 
     if enable_cache is not None:
         if isinstance(enable_cache, str):
