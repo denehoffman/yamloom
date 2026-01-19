@@ -65,10 +65,12 @@ def create_build_job(job_name: str, name: str, targets: list[Target]) -> Job:
     return Job(
         [
             checkout(),
+            script(
+                'Write version file',
+                f'printf "%s\n" {context.matrix.platform.python_versions.as_array().join(" ")} >> version.txt',
+            ),
             setup_python(
-                python_version=context.matrix.platform.python_versions.as_array().join(
-                    '\\n'
-                ),
+                python_version_file='version.txt',
                 architecture=context.matrix.platform.python_arch.as_str()
                 if name == 'windows'
                 else None,

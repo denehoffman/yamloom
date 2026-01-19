@@ -63,6 +63,30 @@ impl Yamlable for &Yaml {
         self.to_owned().clone()
     }
 }
+
+fn push_escaped_control(out: &mut String, ch: char) -> bool {
+    match ch {
+        '\n' => out.push_str("\\n"),
+        '\r' => out.push_str("\\r"),
+        '\t' => out.push_str("\\t"),
+        c if c.is_control() => {
+            use std::fmt::Write as _;
+            let _ = write!(out, "\\u{:04X}", c as u32);
+        }
+        _ => return false,
+    }
+    true
+}
+
+fn escape_control_chars(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for ch in s.chars() {
+        if !push_escaped_control(&mut out, ch) {
+            out.push(ch);
+        }
+    }
+    out
+}
 impl Yamlable for f64 {
     fn as_yaml(&self) -> Yaml {
         Yaml::Real(self.to_string())
@@ -75,12 +99,13 @@ impl Yamlable for &f64 {
 }
 impl Yamlable for String {
     fn as_yaml(&self) -> Yaml {
-        if self.contains("${{") && self.contains("}}") {
+        let escaped = escape_control_chars(self);
+        if escaped.contains("${{") && escaped.contains("}}") {
             // prevents variables from being quoted when they might
             // evaluate as bools or numbers
-            Yaml::Real(self.clone())
+            Yaml::Real(escaped)
         } else {
-            Yaml::String(self.clone())
+            Yaml::String(escaped)
         }
     }
 }
@@ -421,6 +446,8 @@ mod yamloom {
     #[pymodule]
     mod expressions {
         use pyo3::types::{PyFloat, PyInt};
+
+        use crate::push_escaped_control;
 
         use super::*;
 
@@ -1419,9 +1446,10 @@ mod yamloom {
             out.push('\'');
             for ch in s.chars() {
                 if ch == '\'' {
-                    out.push('\'');
+                    out.push_str("''");
+                } else if !push_escaped_control(&mut out, ch) {
+                    out.push(ch);
                 }
-                out.push(ch);
             }
             out.push('\'');
             out

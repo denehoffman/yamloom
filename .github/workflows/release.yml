@@ -92,10 +92,12 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v6
+      - name: Write version file
+        run: printf "%s\n" ${{ join(matrix.platform.python_versions, ' ') }} >> version.txt
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
-          python-version: ${{ join(matrix.platform.python_versions, '\n') }}
+          python-version-file: version.txt
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
@@ -164,10 +166,12 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v6
+      - name: Write version file
+        run: printf "%s\n" ${{ join(matrix.platform.python_versions, ' ') }} >> version.txt
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
-          python-version: ${{ join(matrix.platform.python_versions, '\n') }}
+          python-version-file: version.txt
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
@@ -225,10 +229,12 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v6
+      - name: Write version file
+        run: printf "%s\n" ${{ join(matrix.platform.python_versions, ' ') }} >> version.txt
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
-          python-version: ${{ join(matrix.platform.python_versions, '\n') }}
+          python-version-file: version.txt
           architecture: ${{ matrix.platform.python_arch }}
       - name: Build wheels
         uses: PyO3/maturin-action@v1
@@ -274,10 +280,12 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v6
+      - name: Write version file
+        run: printf "%s\n" ${{ join(matrix.platform.python_versions, ' ') }} >> version.txt
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
-          python-version: ${{ join(matrix.platform.python_versions, '\n') }}
+          python-version-file: version.txt
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
