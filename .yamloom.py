@@ -16,6 +16,7 @@ from yamloom import (
     Strategy,
     script,
     Environment,
+    action,
 )
 
 
@@ -154,13 +155,7 @@ release_workflow = Workflow(
                 Target(
                     'windows-11-arm',
                     'aarch64',
-                    [
-                        '3.9',
-                        '3.10',
-                        '3.11',
-                        '3.13t',
-                        '3.14t',
-                    ],
+                    ['3.9', '3.10', '3.11', '3.13t', '3.14t', 'pypy3.11'],
                 ),
             ],
         ),
@@ -207,6 +202,34 @@ release_workflow = Workflow(
     },
 )
 
+version_workflow = Workflow(
+    name='Release Please',
+    on=Events(
+        push=PushEvent(
+            branches=['main'],
+        ),
+    ),
+    permissions=Permissions(contents='write', issues='write', pull_requests='write'),
+    jobs={
+        'release-please': Job(
+            [
+                action(
+                    'Release Please Action',
+                    'googleapis/release-please-action',
+                    ref='v4',
+                    with_opts={
+                        'token': context.secrets.RELEASE_PLEASE,
+                        'config-file': 'release-please-config.json',
+                        'manifest-file': '.release-please-manifest.json',
+                    },
+                )
+            ],
+            runs_on='ubuntu-latest',
+        )
+    },
+)
+
 
 if __name__ == '__main__':
     release_workflow.dump('.github/workflows/release.yml')
+    version_workflow.dump('.github/workflows/release-please.yml')
