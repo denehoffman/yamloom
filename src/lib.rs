@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display, fs::OpenOptions, io::Write, path::Path};
 
 use hashlink::LinkedHashMap;
 use pyo3::{
@@ -22,6 +22,24 @@ pub trait Yamlable {
             .dump(&yaml)
             .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
         Ok(out_str)
+    }
+    fn write_to_file(&self, path: impl AsRef<Path>, overwrite: bool) -> PyResult<()> {
+        let mut opts = OpenOptions::new();
+        opts.write(true).create(true);
+        if overwrite {
+            opts.truncate(true);
+        } else {
+            opts.create_new(true);
+        }
+        let mut file = match opts.open(path) {
+            Ok(f) => f,
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => return Ok(()),
+            Err(e) => return Err(PyErr::from(e)),
+        };
+
+        file.write_all(self.as_yaml_string()?.as_bytes())?;
+        file.flush()?;
+        Ok(())
     }
 }
 impl Yamlable for Yaml {
@@ -369,7 +387,7 @@ where
 #[pymodule]
 #[pyo3(name = "_lupo")]
 mod lupo {
-    use std::{collections::HashMap, fmt::Display, str::FromStr};
+    use std::{collections::HashMap, fmt::Display, path::PathBuf, str::FromStr};
 
     use pyo3::{
         exceptions::PyValueError,
@@ -4662,6 +4680,17 @@ mod lupo {
                 defaults,
                 concurrency,
                 jobs,
+            }
+        }
+
+        #[pyo3(signature = (path, *, overwrite = true))]
+        fn dump(&self, path: Bound<PyAny>, overwrite: bool) -> PyResult<()> {
+            if let Ok(p) = path.extract::<PathBuf>() {
+                self.write_to_file(p, overwrite)
+            } else if let Ok(s) = path.extract::<String>() {
+                self.write_to_file(s, overwrite)
+            } else {
+                Err(PyValueError::new_err("Invalid path"))
             }
         }
 

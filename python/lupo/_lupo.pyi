@@ -1,3 +1,4 @@
+from pathlib import Path
 from collections.abc import Mapping, Sequence
 from types import ModuleType
 from typing import Any, Literal
@@ -526,6 +527,7 @@ class Workflow:
         defaults: Defaults | None = None,
         concurrency: Concurrency | None = None,
     ) -> None: ...
+    def dump(self, path: Path | str, *, overwrite: bool = True) -> None: ...
 
 __all__ = [
     'BranchProtectionRuleEvent',
