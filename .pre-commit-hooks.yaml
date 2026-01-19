@@ -1,0 +1,5 @@
+- id: lupo-sync
+  name: lupo workflow sync
+  entry: python -m lupo
+  language: python
+  pass_filenames: false

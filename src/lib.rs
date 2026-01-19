@@ -1,4 +1,9 @@
-use std::{fmt::Display, fs::OpenOptions, io::Write, path::Path};
+use std::{
+    fmt::Display,
+    fs::{create_dir_all, OpenOptions},
+    io::Write,
+    path::Path,
+};
 
 use hashlink::LinkedHashMap;
 use pyo3::{
@@ -24,6 +29,12 @@ pub trait Yamlable {
         Ok(out_str)
     }
     fn write_to_file(&self, path: impl AsRef<Path>, overwrite: bool) -> PyResult<()> {
+        let path = path.as_ref();
+        if let Some(parent) = path.parent() {
+            if !parent.as_os_str().is_empty() {
+                create_dir_all(parent)?;
+            }
+        }
         let mut opts = OpenOptions::new();
         opts.write(true).create(true);
         if overwrite {
