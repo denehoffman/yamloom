@@ -75,15 +75,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bcc35a38544a891a5f7c865aca548a982ccb3b8650a5b06d0fd33a10283c56fc"
 
 [[package]]
-name = "lupo"
-version = "0.1.0"
-dependencies = [
- "hashlink",
- "pyo3",
- "yaml-rust2",
-]
-
-[[package]]
 name = "memoffset"
 version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -227,4 +218,13 @@ dependencies = [
  "arraydeque",
  "encoding_rs",
  "hashlink",
+]
+
+[[package]]
+name = "yamloom"
+version = "0.1.0"
+dependencies = [
+ "hashlink",
+ "pyo3",
+ "yaml-rust2",
 ]

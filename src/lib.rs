@@ -396,8 +396,8 @@ where
 
 /// A Pythonic implementation of GitHub Actions syntax
 #[pymodule]
-#[pyo3(name = "_lupo")]
-mod lupo {
+#[pyo3(name = "_yamloom")]
+mod yamloom {
     use std::{collections::HashMap, fmt::Display, path::PathBuf, str::FromStr};
 
     use pyo3::{
@@ -411,7 +411,7 @@ mod lupo {
     };
 
     use crate::{
-        lupo::expressions::{
+        yamloom::expressions::{
             BooleanExpression, NumberExpression, StringExpression, YamlExpression,
         },
         Either, InsertYaml, MaybeYamlable, PushYaml, PyMap, TryArray, TryHash, TryYamlable,

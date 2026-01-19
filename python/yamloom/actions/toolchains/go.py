@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ..._lupo import Step
-from ..._lupo import action
+from ..._yamloom import Step
+from ..._yamloom import action
 from ..types import (
     Oboollike,
     Oboolstr,

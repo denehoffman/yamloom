@@ -1,4 +1,4 @@
-from ._lupo import expressions as _expressions
+from ._yamloom import expressions as _expressions
 
 globals().update(_expressions.__dict__)
 

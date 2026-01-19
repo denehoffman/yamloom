@@ -1,11 +1,11 @@
 from __future__ import annotations
 from collections.abc import Sequence
-from lupo.actions.utils import validate_choice
+from yamloom.actions.utils import validate_choice
 
 from typing import TYPE_CHECKING
 
-from ..._lupo import Step
-from ..._lupo import action
+from ..._yamloom import Step
+from ..._yamloom import action
 from ..types import (
     Oboollike,
     Oboolstr,

@@ -1,10 +1,10 @@
 from __future__ import annotations
-from lupo.actions.utils import check_string
+from yamloom.actions.utils import check_string
 
 from typing import TYPE_CHECKING
 
-from ..._lupo import Step
-from ..._lupo import action
+from ..._yamloom import Step
+from ..._yamloom import action
 from ..types import (
     Obool,
     Oboollike,

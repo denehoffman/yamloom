@@ -1,4 +1,4 @@
-from lupo.actions.types import Ostrlike
+from yamloom.actions.types import Ostrlike
 from collections.abc import Sequence
 
 

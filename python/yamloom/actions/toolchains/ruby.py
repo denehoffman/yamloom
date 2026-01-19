@@ -1,10 +1,10 @@
 from __future__ import annotations
-from lupo.actions.utils import validate_choice, check_string
+from yamloom.actions.utils import validate_choice
 
 from typing import TYPE_CHECKING
 
-from ..._lupo import Step
-from ..._lupo import action
+from ..._yamloom import Step
+from ..._yamloom import action
 from ..types import (
     Oboollike,
     Oboolstr,
@@ -17,14 +17,22 @@ from ..types import (
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-__all__ = ['setup_mpi']
+__all__ = ['setup_ruby']
 
 
-def setup_mpi(
+def setup_ruby(
     *,
     name: Ostrlike = None,
     version: str = 'v1',
-    mpi: Ostrlike = None,
+    ruby_version: Ostrlike = None,
+    rubygems: Ostrlike = None,
+    bundler: Ostrlike = None,
+    bundler_cache: Oboollike = None,
+    ruby_working_directory: Ostrlike = None,
+    cache_version: Ostrlike = None,
+    self_hosted: Oboollike = None,
+    windows_toolchain: Ostrlike = None,
+    token: Ostrlike = None,
     args: Ostrlike = None,
     entrypoint: Ostrlike = None,
     condition: Oboolstr = None,
@@ -36,28 +44,26 @@ def setup_mpi(
     timeout_minutes: Ointlike = None,
 ) -> Step:
     options: dict[str, object] = {
-        'mpi': validate_choice('mpi', mpi, ['mpich', 'openmpi', 'intelmpi', 'msmpi']),
+        'ruby-version': ruby_version,
+        'rubygems': rubygems,
+        'bundler': bundler,
+        'bundler-cache': bundler_cache,
+        'working-directory': ruby_working_directory,
+        'cache-version': cache_version,
+        'self-hosted': self_hosted,
+        'windows-toolchain': validate_choice(
+            'windows-toolchain', windows_toolchain, ['defauult', 'none']
+        ),
+        'token': token,
     }
-
     options = {key: value for key, value in options.items() if value is not None}
 
-    mpi_names = {
-        'mpich': 'MPICH',
-        'openmpi': 'Open MPI',
-        'intelmpi': 'Intel MPI',
-        'msmpi': 'Microsoft MPI',
-    }
-
     if name is None:
-        mpi_str = check_string(options.get('mpi'))
-        if mpi_str:
-            name = f'Setup {mpi_names[mpi_str]}'
-        else:
-            name = 'Setup MPI'
+        name = 'Setup Ruby'
 
     return action(
         name,
-        'mpi4py/setup-mpi',
+        'actions/setup-ruby',
         ref=version,
         with_opts=options or None,
         args=args,

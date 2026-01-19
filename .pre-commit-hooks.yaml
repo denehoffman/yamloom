@@ -1,5 +1,5 @@
-- id: lupo-sync
-  name: lupo workflow sync
-  entry: python -m lupo
+- id: yamloom-sync
+  name: yamloom workflow sync
+  entry: python -m yamloom
   language: python
   pass_filenames: false

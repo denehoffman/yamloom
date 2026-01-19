@@ -3,7 +3,7 @@ requires = ["maturin>=1.10,<2.0"]
 build-backend = "maturin"
 
 [project]
-name = "lupo"
+name = "yamloom"
 requires-python = ">=3.9"
 classifiers = [
     "Programming Language :: Rust",
@@ -14,7 +14,7 @@ dynamic = ["version"]
 
 [tool.maturin]
 python-source = "python"
-module-name = "lupo._lupo"
+module-name = "yamloom._yamloom"
 
 
 [tool.ruff.format]

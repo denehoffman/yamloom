@@ -7,8 +7,8 @@ import sys
 from pathlib import Path
 
 
-DEFAULT_CANDIDATES = ('.lupo.py', 'lupo.py')
-ENV_VAR = 'LUPO_FILE'
+DEFAULT_CANDIDATES = ('.yamloom.py', 'yamloom.py')
+ENV_VAR = 'YAMLOOM_FILE'
 
 
 def resolve_target(explicit: str | None) -> Path:
@@ -32,7 +32,7 @@ def resolve_target(explicit: str | None) -> Path:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description='Run lupo workflow generator.')
+    parser = argparse.ArgumentParser(description='Run yamloom workflow generator.')
     parser.add_argument(
         '--file',
         dest='file',
