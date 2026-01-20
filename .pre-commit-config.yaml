@@ -15,3 +15,8 @@ repos:
       # Run the linter.
       - id: ty-check
         types_or: [ python, pyi ]
+  # - repo: https://github.com/denehoffman/yamloom
+  #   rev: v0.1.0
+  #   hooks:
+  #     - id : yamloom-sync
+  #       files: ^(\.github/workflows/.*\.ya?ml|\.yamloom\.py)$

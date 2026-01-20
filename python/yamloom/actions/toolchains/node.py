@@ -1,5 +1,4 @@
 from __future__ import annotations
-from collections.abc import Sequence
 from yamloom.actions.utils import validate_choice
 
 from typing import TYPE_CHECKING
@@ -93,7 +92,7 @@ def setup_pnpm(
     dest: Ostrlike = None,
     run_install: StringLike | BoolLike | None = None,
     cache: Oboollike = None,
-    cache_dependency_path: Ostrlike | Sequence[StringLike] = None,
+    cache_dependency_path: Ostrlike | list[StringLike] = None,
     package_json_file: Ostrlike = None,
     standalone: Oboollike = None,
     args: Ostrlike = None,

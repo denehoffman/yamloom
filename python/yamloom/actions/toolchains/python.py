@@ -16,7 +16,7 @@ from ..types import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
+    from collections.abc import Mapping
 
 __all__ = ['setup_python', 'setup_uv']
 
@@ -109,7 +109,7 @@ def setup_uv(
     checksum: Ostrlike = None,
     github_token: Ostrlike = None,
     enable_cache: StringOrBoolLike | None = None,
-    cache_dependency_glob: Sequence[StringLike] | None = None,
+    cache_dependency_glob: list[StringLike] | None = None,
     restore_cache: Oboollike = None,
     save_cache: Oboollike = None,
     cache_suffix: Ostrlike = None,

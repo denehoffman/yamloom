@@ -1,3 +1,6 @@
+#![allow(clippy::wrong_self_convention)]
+#![allow(clippy::too_many_arguments)]
+
 use std::{
     fmt::Display,
     fs::{create_dir_all, OpenOptions},
@@ -30,11 +33,10 @@ pub trait Yamlable {
     }
     fn write_to_file(&self, path: impl AsRef<Path>, overwrite: bool) -> PyResult<()> {
         let path = path.as_ref();
-        if let Some(parent) = path.parent() {
-            if !parent.as_os_str().is_empty() {
+        if let Some(parent) = path.parent()
+            && !parent.as_os_str().is_empty() {
                 create_dir_all(parent)?;
             }
-        }
         let mut opts = OpenOptions::new();
         opts.write(true).create(true);
         if overwrite {
@@ -99,13 +101,13 @@ impl Yamlable for &f64 {
 }
 impl Yamlable for String {
     fn as_yaml(&self) -> Yaml {
-        let escaped = escape_control_chars(self);
-        if escaped.contains("${{") && escaped.contains("}}") {
+        if self.contains("${{") && self.contains("}}") {
+            let escaped = escape_control_chars(self);
             // prevents variables from being quoted when they might
             // evaluate as bools or numbers
             Yaml::Real(escaped)
         } else {
-            Yaml::String(escaped)
+            Yaml::String(self.to_string())
         }
     }
 }
@@ -1555,7 +1557,7 @@ mod yamloom {
 
     impl Yamlable for WithArgs {
         fn as_yaml(&self) -> Yaml {
-            let mut entries = self.options.clone().unwrap_or(Hash::new());
+            let mut entries = self.options.clone().unwrap_or_default();
             entries.insert_yaml_opt("args", &self.args);
             entries.insert_yaml_opt("entrypoint", &self.entrypoint);
             Yaml::Hash(entries)
@@ -2470,16 +2472,16 @@ mod yamloom {
             out.insert_yaml_opt("outputs", &self.outputs);
             out.insert_yaml_opt("env", &self.env);
             if let Some(defaults) = &self.defaults {
-                out.insert_yaml_opt("defaults", &defaults.maybe_as_yaml());
+                out.insert_yaml_opt("defaults", defaults.maybe_as_yaml());
             }
             out.insert_yaml_opt("strategy", &self.strategy);
             out.insert_yaml("steps", &self.steps);
-            out.insert_yaml_opt("timeout-minutes", &self.timeout_minutes);
+            out.insert_yaml_opt("timeout-minutes", self.timeout_minutes);
             out.insert_yaml_opt("continue-on-error", &self.continue_on_error);
             out.insert_yaml_opt("container", &self.container);
             out.insert_yaml_opt("services", &self.services);
             out.insert_yaml_opt("uses", &self.uses);
-            out.insert_yaml_opt("with", &self.with.clone().map(|w| Yaml::Hash(w)));
+            out.insert_yaml_opt("with", self.with.clone().map(Yaml::Hash));
             out.insert_yaml_opt("secrets", &self.secrets);
             Yaml::Hash(out)
         }
@@ -3495,11 +3497,10 @@ mod yamloom {
     impl<'a, 'py> FromPyObject<'a, 'py> for CronMinute {
         type Error = PyErr;
         fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
-            if let Ok(num) = obj.extract::<u8>() {
-                if num <= 59 {
+            if let Ok(num) = obj.extract::<u8>()
+                && num <= 59 {
                     return Ok(CronMinute(num));
                 }
-            }
             Err(PyValueError::new_err(
                 "Minute must be an integer in range 0..=59",
             ))
@@ -3512,11 +3513,10 @@ mod yamloom {
     impl<'a, 'py> FromPyObject<'a, 'py> for CronHour {
         type Error = PyErr;
         fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
-            if let Ok(num) = obj.extract::<u8>() {
-                if num <= 23 {
+            if let Ok(num) = obj.extract::<u8>()
+                && num <= 23 {
                     return Ok(CronHour(num));
                 }
-            }
             Err(PyValueError::new_err(
                 "Hour must be an integer in range 0..=23",
             ))
@@ -3529,11 +3529,10 @@ mod yamloom {
     impl<'a, 'py> FromPyObject<'a, 'py> for CronDay {
         type Error = PyErr;
         fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
-            if let Ok(num) = obj.extract::<u8>() {
-                if 1 <= num && num <= 31 {
+            if let Ok(num) = obj.extract::<u8>()
+                && (1..=31).contains(&num) {
                     return Ok(CronDay(num));
                 }
-            }
             Err(PyValueError::new_err(
                 "Hour must be an integer in range 1..=31",
             ))
@@ -3547,11 +3546,10 @@ mod yamloom {
         type Error = PyErr;
         fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
             let msg = "Month must be an integer in range 1..=12";
-            if let Ok(num) = obj.extract::<u8>() {
-                if 1 <= num && num <= 12 {
+            if let Ok(num) = obj.extract::<u8>()
+                && (1..=12).contains(&num) {
                     return Ok(CronMonth(num));
                 }
-            }
             Err(PyValueError::new_err(msg))
         }
     }
@@ -3563,11 +3561,10 @@ mod yamloom {
         type Error = PyErr;
         fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
             let msg = "Day of week must be an integer in range 0..=6 (0=Sunday)";
-            if let Ok(num) = obj.extract::<u8>() {
-                if num <= 6 {
+            if let Ok(num) = obj.extract::<u8>()
+                && num <= 6 {
                     return Ok(CronDayOfWeek(num));
                 }
-            }
             Err(PyValueError::new_err(msg))
         }
     }
@@ -3610,7 +3607,7 @@ mod yamloom {
                 .map(|s| s.0);
             let interval = interval.extract::<CronMinute>()?;
             Ok(Self(CronStepType::Step {
-                start: start,
+                start,
                 step: interval.0,
             }))
         }
@@ -3654,7 +3651,7 @@ mod yamloom {
                 .map(|s| s.0);
             let interval = interval.extract::<CronHour>()?;
             Ok(Self(CronStepType::Step {
-                start: start,
+                start,
                 step: interval.0,
             }))
         }
@@ -3698,7 +3695,7 @@ mod yamloom {
                 .map(|s| s.0);
             let interval = interval.extract::<CronDay>()?;
             Ok(Self(CronStepType::Step {
-                start: start,
+                start,
                 step: interval.0,
             }))
         }
@@ -3742,7 +3739,7 @@ mod yamloom {
                 .map(|s| s.0);
             let interval = interval.extract::<CronMonth>()?;
             Ok(Self(CronStepType::Step {
-                start: start,
+                start,
                 step: interval.0,
             }))
         }
@@ -3786,7 +3783,7 @@ mod yamloom {
                 .map(|s| s.0);
             let interval = interval.extract::<CronDayOfWeek>()?;
             Ok(Self(CronStepType::Step {
-                start: start,
+                start,
                 step: interval.0,
             }))
         }
@@ -4000,7 +3997,7 @@ mod yamloom {
             let mut out = Hash::new();
             out.insert_yaml_opt("description", &self.description);
             out.insert_yaml("type", self.input_type.get_type());
-            out.insert_yaml_opt("required", &self.required);
+            out.insert_yaml_opt("required", self.required);
             out.insert_yaml_opt("default", self.input_type.get_default());
             Yaml::Hash(out)
         }
@@ -4058,7 +4055,7 @@ mod yamloom {
         fn maybe_as_yaml(&self) -> Option<Yaml> {
             let mut out = Hash::new();
             out.insert_yaml_opt("description", &self.description);
-            out.insert_yaml_opt("required", &self.required);
+            out.insert_yaml_opt("required", self.required);
             if out.is_empty() {
                 None
             } else {
@@ -4155,11 +4152,11 @@ mod yamloom {
         }
         fn get_default(&self) -> Option<Yaml> {
             match self {
-                Self::Boolean { default } => default.map(|b| Yaml::Boolean(b)),
-                Self::Choice { default, .. } => default.clone().map(|s| Yaml::String(s)),
-                Self::Number { default } => default.map(|n| Yaml::Integer(n)),
+                Self::Boolean { default } => default.map(Yaml::Boolean),
+                Self::Choice { default, .. } => default.clone().map(Yaml::String),
+                Self::Number { default } => default.map(Yaml::Integer),
                 Self::Environment => None, // TODO: check if environment can have a default
-                Self::String { default } => default.clone().map(|s| Yaml::String(s)),
+                Self::String { default } => default.clone().map(Yaml::String),
             }
         }
         fn get_options(&self) -> Option<Yaml> {
@@ -4254,7 +4251,7 @@ mod yamloom {
             let mut out = Hash::new();
             out.insert_yaml_opt("description", &self.description);
             out.insert_yaml("type", self.input_type.get_type());
-            out.insert_yaml_opt("required", &self.required);
+            out.insert_yaml_opt("required", self.required);
             out.insert_yaml_opt("default", self.input_type.get_default());
             out.insert_yaml_opt("options", self.input_type.get_options());
             Yaml::Hash(out)
@@ -4746,7 +4743,7 @@ mod yamloom {
             out.insert_yaml_opt("permissions", &self.permissions);
             out.insert_yaml_opt("env", &self.env);
             if let Some(defaults) = &self.defaults {
-                out.insert_yaml_opt("defaults", &defaults.maybe_as_yaml());
+                out.insert_yaml_opt("defaults", defaults.maybe_as_yaml());
             }
             out.insert_yaml_opt("concurrency", &self.concurrency);
             out.insert_yaml("jobs", &self.jobs);

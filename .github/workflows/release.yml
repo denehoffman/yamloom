@@ -11,7 +11,37 @@ name: Build and Release
 permissions:
   contents: read
 jobs:
+  build-test-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          components: clippy
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.9"
+      - name: Check Rust
+        run: cargo clippy
+      - name: Test Rust
+        run: cargo test
+      - name: Setup venv
+        run: |-
+          uv venv
+          . .venv/bin/activate
+          echo PATH=$PATH >> $GITHUB_ENV
+          uvx maturin develop --uv
+      - name: Check Python
+        run: |-
+          uvx ruff check
+          uvx ty check
+      - name: Test Python
+        run: uvx pytest
   linux:
+    needs:
+      - build-test-check
+    if: ${{ (startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch')) }}
     runs-on: ${{ matrix.platform.runner }}
     strategy:
       matrix:
@@ -111,6 +141,9 @@ jobs:
           path: dist
           name: wheels-linux-${{ matrix.platform.target }}
   musllinux:
+    needs:
+      - build-test-check
+    if: ${{ (startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch')) }}
     runs-on: ${{ matrix.platform.runner }}
     strategy:
       matrix:
@@ -186,6 +219,9 @@ jobs:
           path: dist
           name: wheels-musllinux-${{ matrix.platform.target }}
   windows:
+    needs:
+      - build-test-check
+    if: ${{ (startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch')) }}
     runs-on: ${{ matrix.platform.runner }}
     strategy:
       matrix:
@@ -245,6 +281,9 @@ jobs:
           path: dist
           name: wheels-windows-${{ matrix.platform.target }}
   macos:
+    needs:
+      - build-test-check
+    if: ${{ (startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch')) }}
     runs-on: ${{ matrix.platform.runner }}
     strategy:
       matrix:

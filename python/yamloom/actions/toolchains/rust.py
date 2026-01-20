@@ -15,7 +15,7 @@ from ..types import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
+    from collections.abc import Mapping
 
 __all__ = ['install_rust_tool', 'setup_rust']
 
@@ -26,10 +26,10 @@ def setup_rust(
     version: str = 'v1',
     toolchain: Ostrlike = None,
     target: Ostrlike = None,
-    components: Sequence[StringLike] | None = None,
+    components: list[StringLike] | None = None,
     cache: Oboollike = None,
-    cache_directories: Sequence[StringLike] | None = None,
-    cache_workspaces: Sequence[StringLike] | None = None,
+    cache_directories: list[StringLike] | None = None,
+    cache_workspaces: list[StringLike] | None = None,
     cache_on_failure: Oboollike = None,
     cache_key: Ostrlike = None,
     cache_shared_key: Ostrlike = None,
@@ -103,7 +103,7 @@ def setup_rust(
 
 def install_rust_tool(
     *,
-    tool: Sequence[StringLike],
+    tool: list[StringLike],
     name: Ostrlike = None,
     version: str = 'v1',
     checksum: Oboollike = None,

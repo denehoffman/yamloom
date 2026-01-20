@@ -1,5 +1,5 @@
 from pathlib import Path
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from types import ModuleType
 from typing import Any, Literal
 
@@ -123,8 +123,8 @@ class Matrix:
     def __init__(
         self,
         *,
-        include: Sequence | None = None,
-        exclude: Sequence | None = None,
+        include: list | None = None,
+        exclude: list | None = None,
         **matrix: Any,
     ) -> None: ...
 
@@ -147,8 +147,8 @@ class Container:
         *,
         credentials: Credentials | None = None,
         env: Mapping[str, StringLike] | None = None,
-        ports: Sequence[IntLike] | None = None,
-        volumes: Sequence[StringLike] | None = None,
+        ports: list[IntLike] | None = None,
+        volumes: list[StringLike] | None = None,
         options: Ostrlike = None,
     ) -> None: ...
 
@@ -160,13 +160,13 @@ class JobSecrets:
 class Job:
     def __init__(
         self,
-        steps: Sequence[Step],
+        steps: list[Step],
         *,
         name: Ostrlike = None,
         permissions: Permissions | None = None,
-        needs: Sequence[str] | None = None,
+        needs: list[str] | None = None,
         condition: Oboolstr = None,
-        runs_on: RunsOnSpec | Sequence[StringLike] | StringLike | None = None,
+        runs_on: RunsOnSpec | list[StringLike] | StringLike | None = None,
         snapshot: Ostr = None,
         environment: Environment | None = None,
         concurrency: Concurrency | None = None,
@@ -229,8 +229,8 @@ class ImageVersionEvent:
     def __init__(
         self,
         *,
-        names: Sequence[str] | None = None,
-        versions: Sequence[str] | None = None,
+        names: list[str] | None = None,
+        versions: list[str] | None = None,
     ) -> None: ...
 
 class IssueCommentEvent:
@@ -285,10 +285,10 @@ class PullRequestEvent:
     def __init__(
         self,
         *,
-        branches: Sequence[str] | None = None,
-        branches_ignore: Sequence[str] | None = None,
-        paths: Sequence[str] | None = None,
-        paths_ignore: Sequence[str] | None = None,
+        branches: list[str] | None = None,
+        branches_ignore: list[str] | None = None,
+        paths: list[str] | None = None,
+        paths_ignore: list[str] | None = None,
         assigned: bool = False,
         unassigned: bool = False,
         labeled: bool = False,
@@ -326,12 +326,12 @@ class PushEvent:
     def __init__(
         self,
         *,
-        branches: Sequence[str] | None = None,
-        branches_ignore: Sequence[str] | None = None,
-        tags: Sequence[str] | None = None,
-        tags_ignore: Sequence[str] | None = None,
-        paths: Sequence[str] | None = None,
-        paths_ignore: Sequence[str] | None = None,
+        branches: list[str] | None = None,
+        branches_ignore: list[str] | None = None,
+        tags: list[str] | None = None,
+        tags_ignore: list[str] | None = None,
+        paths: list[str] | None = None,
+        paths_ignore: list[str] | None = None,
     ) -> None: ...
 
 class RegistryPackageEvent:
@@ -351,38 +351,38 @@ class ReleaseEvent:
     ) -> None: ...
 
 class RepositoryDispatchEvent:
-    def __init__(self, *, types: Sequence[str] | None = None) -> None: ...
+    def __init__(self, *, types: list[str] | None = None) -> None: ...
 
 class Minute:
-    def __init__(self, minute: int | Sequence[int]) -> None: ...
+    def __init__(self, minute: int | list[int]) -> None: ...
     @staticmethod
     def between(start: int, end: int) -> Minute: ...
     @staticmethod
     def every(interval: int, *, start: Oint = None) -> Minute: ...
 
 class Hour:
-    def __init__(self, minute: int | Sequence[int]) -> None: ...
+    def __init__(self, minute: int | list[int]) -> None: ...
     @staticmethod
     def between(start: int, end: int) -> Hour: ...
     @staticmethod
     def every(interval: int, *, start: Oint = None) -> Hour: ...
 
 class Day:
-    def __init__(self, minute: int | Sequence[int]) -> None: ...
+    def __init__(self, minute: int | list[int]) -> None: ...
     @staticmethod
     def between(start: int, end: int) -> Day: ...
     @staticmethod
     def every(interval: int, *, start: Oint = None) -> Day: ...
 
 class Month:
-    def __init__(self, minute: int | Sequence[int]) -> None: ...
+    def __init__(self, minute: int | list[int]) -> None: ...
     @staticmethod
     def between(start: int, end: int) -> Month: ...
     @staticmethod
     def every(interval: int, *, start: Oint = None) -> Month: ...
 
 class DayOfWeek:
-    def __init__(self, minute: int | Sequence[int]) -> None: ...
+    def __init__(self, minute: int | list[int]) -> None: ...
     @staticmethod
     def between(start: int, end: int) -> DayOfWeek: ...
     @staticmethod
@@ -400,7 +400,7 @@ class Cron:
     ) -> None: ...
 
 class ScheduleEvent:
-    def __init__(self, *, crons: Sequence[Cron] | None = None) -> None: ...
+    def __init__(self, *, crons: list[Cron] | None = None) -> None: ...
 
 class WatchEvent:
     def __init__(self, *, started: bool = False) -> None: ...
@@ -441,7 +441,7 @@ class WorkflowDispatchInput:
     ) -> WorkflowDispatchInput: ...
     @staticmethod
     def choice(
-        options: Sequence[str],
+        options: list[str],
         *,
         description: Ostr = None,
         default: Ostr = None,
@@ -469,12 +469,12 @@ class WorkflowRunEvent:
     def __init__(
         self,
         *,
-        workflows: Sequence[str] | None = None,
+        workflows: list[str] | None = None,
         completed: bool = False,
         requested: bool = False,
         in_progress: bool = False,
-        branches: Sequence[str] | None = None,
-        branches_ignore: Sequence[str] | None = None,
+        branches: list[str] | None = None,
+        branches_ignore: list[str] | None = None,
     ) -> None: ...
 
 class Events:

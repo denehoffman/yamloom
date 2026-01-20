@@ -1,5 +1,5 @@
 - id: yamloom-sync
   name: yamloom workflow sync
-  entry: python -m yamloom
+  entry: yamloom
   language: python
   pass_filenames: false

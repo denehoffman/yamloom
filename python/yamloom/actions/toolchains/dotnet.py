@@ -1,5 +1,4 @@
 from __future__ import annotations
-from collections.abc import Sequence
 from yamloom.actions.utils import validate_choice
 
 from typing import TYPE_CHECKING
@@ -32,7 +31,7 @@ def setup_dotnet(
     owner: Ostrlike = None,
     config_file: Ostrlike = None,
     cache: Oboollike = None,
-    cache_dependency_path: Ostrlike | Sequence[StringLike] = None,
+    cache_dependency_path: Ostrlike | list[StringLike] = None,
     args: Ostrlike = None,
     entrypoint: Ostrlike = None,
     condition: Oboolstr = None,

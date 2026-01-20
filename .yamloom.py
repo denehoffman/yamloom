@@ -1,3 +1,4 @@
+from yamloom.actions.toolchains.rust import setup_rust
 from dataclasses import dataclass
 from yamloom.actions.github.artifacts import upload_artifact, download_artifact
 from yamloom.actions.packaging.python import maturin
@@ -47,7 +48,9 @@ def resolve_python_versions(skip: list[str] | None) -> list[str]:
     return [version for version in DEFAULT_PYTHON_VERSIONS if version not in skipped]
 
 
-def create_build_job(job_name: str, name: str, targets: list[Target]) -> Job:
+def create_build_job(
+    job_name: str, name: str, targets: list[Target], *, needs: list[str]
+) -> Job:
     def platform_entry(target: Target) -> dict[str, object]:
         entry = {
             'runner': target.runner,
@@ -97,6 +100,9 @@ def create_build_job(job_name: str, name: str, targets: list[Target]) -> Job:
                 platform=[platform_entry(target) for target in targets],
             ),
         ),
+        needs=needs,
+        condition=context.github.ref.startswith('refs/tags/')
+        | (context.github.event_name == 'workflow_dispatch'),
     )
 
 
@@ -109,6 +115,24 @@ release_workflow = Workflow(
     ),
     permissions=Permissions(contents='read'),
     jobs={
+        'build-test-check': Job(
+            [
+                setup_rust(components=['clippy']),
+                setup_uv(python_version='3.9'),
+                script('Check Rust', 'cargo clippy'),
+                script('Test Rust', 'cargo test'),
+                script(
+                    'Setup venv',
+                    'uv venv',
+                    '. .venv/bin/activate',
+                    'echo PATH=$PATH >> $GITHUB_ENV',
+                    'uvx maturin develop --uv',
+                ),
+                script('Check Python', 'uvx ruff check', 'uvx ty check'),
+                script('Test Python', 'uvx pytest'),
+            ],
+            runs_on='ubuntu-latest',
+        ),
         'linux': create_build_job(
             'Build Linux Wheels',
             'linux',
@@ -126,6 +150,7 @@ release_workflow = Workflow(
                     'ppc64le',
                 ]
             ],
+            needs=['build-test-check'],
         ),
         'musllinux': create_build_job(
             'Build (musl) Linux Wheels',
@@ -142,6 +167,7 @@ release_workflow = Workflow(
                     'armv7',
                 ]
             ],
+            needs=['build-test-check'],
         ),
         'windows': create_build_job(
             'Build Windows Wheels',
@@ -158,6 +184,7 @@ release_workflow = Workflow(
                     ['3.9', '3.10', '3.11', '3.13t', '3.14t', 'pypy3.11'],
                 ),
             ],
+            needs=['build-test-check'],
         ),
         'macos': create_build_job(
             'Build macOS Wheels',
@@ -172,6 +199,7 @@ release_workflow = Workflow(
                     'aarch64',
                 ),
             ],
+            needs=['build-test-check'],
         ),
         'sdist': Job(
             [

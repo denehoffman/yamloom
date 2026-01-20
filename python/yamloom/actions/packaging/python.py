@@ -14,7 +14,7 @@ from ..types import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
+    from collections.abc import Mapping
 
 __all__ = ['maturin']
 
@@ -32,7 +32,7 @@ def maturin(
     host_home_mount: Ostrlike = None,
     target: Ostrlike = None,
     rust_toolchain: Ostrlike = None,
-    rustup_components: Sequence[StringLike] | None = None,
+    rustup_components: list[StringLike] | None = None,
     maturin_working_directory: Ostrlike = None,
     sccache: Oboollike = None,
     before_script_linux: Ostrlike = None,

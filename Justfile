@@ -4,12 +4,17 @@ default:
 develop:
     CARGO_INCREMENTAL=true maturin develop --uv
 
+test:
+    cargo test
+    uvx pytest
+
 check:
     cargo clippy
-    ty check
-    ruff check
-    ruff format
+    uvx ty check
+    uvx ruff check
+    uvx ruff format --check
 
 fix:
     cargo clippy --fix
-    ruff check --fix
+    uvx ruff check --fix
+    uvx ruff format

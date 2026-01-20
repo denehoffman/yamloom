@@ -15,7 +15,7 @@ from ..types import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
+    from collections.abc import Mapping
 
 WARN_RETENTION_DAYS: int = 90
 MAX_COMPRESSION_LEVEL: int = 9
@@ -183,7 +183,7 @@ def download_artifact(
     name: Ostrlike = None,
     version: str = 'v7',
     artifact_name: Ostrlike = None,
-    artifact_ids: Sequence[StringLike] | None = None,
+    artifact_ids: list[StringLike] | None = None,
     pattern: Ostrlike = None,
     merge_multiple: Oboollike = None,
     github_token: Ostrlike = None,

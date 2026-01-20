@@ -16,7 +16,7 @@ from ..types import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
+    from collections.abc import Mapping
 
 __all__ = ['cache', 'cache_restore', 'cache_save']
 
@@ -26,8 +26,8 @@ def cache(
     key: str,
     name: Ostrlike = None,
     version: str = 'v5',
-    path: Sequence[str] | None = None,
-    restore_keys: Sequence[str] | None = None,
+    path: list[str] | None = None,
+    restore_keys: list[str] | None = None,
     enable_cross_os_archive: Obool = None,
     fail_on_cache_miss: Obool = None,
     lookup_only: Obool = None,
@@ -82,8 +82,8 @@ def cache_save(
     key: str,
     name: Ostrlike = None,
     version: str = 'v5',
-    path: Sequence[str] | None = None,
-    restore_keys: Sequence[str] | None = None,
+    path: list[str] | None = None,
+    restore_keys: list[str] | None = None,
     enable_cross_os_archive: Obool = None,
     fail_on_cache_miss: Obool = None,
     lookup_only: Obool = None,
@@ -138,8 +138,8 @@ def cache_restore(
     key: StringLike,
     name: Ostrlike = None,
     version: str = 'v5',
-    path: Sequence[StringLike] | None = None,
-    restore_keys: Sequence[StringLike] | None = None,
+    path: list[StringLike] | None = None,
+    restore_keys: list[StringLike] | None = None,
     enable_cross_os_archive: Oboollike = None,
     fail_on_cache_miss: Oboollike = None,
     lookup_only: Oboollike = None,
