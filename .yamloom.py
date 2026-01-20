@@ -211,6 +211,8 @@ release_workflow = Workflow(
             name='Build Source Distribution',
             runs_on='ubuntu-22.04',
             needs=['build-test-check'],
+            condition=context.github.ref.startswith('refs/tags/')
+            | (context.github.event_name == 'workflow_dispatch'),
         ),
         'release': Job(
             [

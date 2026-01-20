@@ -339,6 +339,7 @@ jobs:
     name: Build Source Distribution
     needs:
       - build-test-check
+    if: ${{ (startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch')) }}
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout Repository
