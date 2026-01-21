@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.2.0](https://github.com/denehoffman/yamloom/compare/v0.1.1...v0.2.0) (2026-01-21)
+
+
+### ⚠ BREAKING CHANGES
+
+* Update all calls from `script(name, x, y, z, **kwargs)` to `script(x, y, z, name=name, **kwargs)` (name is now optional)
+
+### Features
+
+* **ci/coverage.py:** Add Codecov action ([b9a1199](https://github.com/denehoffman/yamloom/commit/b9a1199366a16e7e6edf3a627d179f64adf191d1))
+* **github/attest.py:** Add attestation action ([5e46e94](https://github.com/denehoffman/yamloom/commit/5e46e94e9b33aa7fc9349dcbba0569b3003e3149))
+* **github/pull_request.py:** Add action to create PRs ([311090e](https://github.com/denehoffman/yamloom/commit/311090e953aaa9dde61fcf2adfe52c3ad9e2b65d))
+* **github/release.py:** Add release-please action ([548c756](https://github.com/denehoffman/yamloom/commit/548c756e22f28902fd9fe59b425493b7f3a0e2b8))
+* **packaging/python.py:** Add PyPI publishing action ([f3ad401](https://github.com/denehoffman/yamloom/commit/f3ad401eec859b0043663411c01e30a0089b58d7))
+* Scripts no longer require a name as their first argument (and names are optional on actions but recommended) ([47465a7](https://github.com/denehoffman/yamloom/commit/47465a7f8633377a1657db7b39bc062e7c27ee70))
+* **toolchains/javascript.py:** Add setup_bun action ([2602ea1](https://github.com/denehoffman/yamloom/commit/2602ea1c30ab3758f44da971172f7aa8cfda669a))
+
 ## [0.1.1](https://github.com/denehoffman/yamloom/compare/v0.1.0...v0.1.1) (2026-01-20)
 
 
