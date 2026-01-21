@@ -70,7 +70,6 @@ def create_build_job(
         [
             checkout(),
             script(
-                'Write version file',
                 f'printf "%s\n" {context.matrix.platform.python_versions.as_array().join(" ")} >> version.txt',
             ),
             setup_python(
@@ -120,17 +119,16 @@ release_workflow = Workflow(
                 checkout(),
                 setup_rust(components=['clippy']),
                 setup_uv(python_version='3.9'),
-                script('Check Rust', 'cargo clippy'),
-                script('Test Rust', 'cargo test'),
+                script('cargo clippy'),
+                script('cargo test'),
                 script(
-                    'Setup venv',
                     'uv venv',
                     '. .venv/bin/activate',
                     'echo PATH=$PATH >> $GITHUB_ENV',
                     'uvx maturin develop --uv',
                 ),
-                script('Check Python', 'uvx ruff check', 'uvx ty check'),
-                script('Test Python', 'uvx pytest'),
+                script('uvx ruff check', 'uvx ty check'),
+                script('uvx pytest'),
             ],
             runs_on='ubuntu-latest',
         ),
@@ -219,7 +217,6 @@ release_workflow = Workflow(
                 download_artifact(),
                 setup_uv(),
                 script(
-                    'Publish to PyPI',
                     'uv publish --trusted-publishing always wheels-*/*',
                 ),
             ],

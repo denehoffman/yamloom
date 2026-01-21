@@ -28,8 +28,8 @@ expressions: ModuleType
 class Step: ...
 
 def script(
-    name: StringLike,
     *script: StringLike,
+    name: Ostrlike = None,
     condition: Oboolstr = None,
     working_directory: Ostrlike = None,
     shell: Ostr = None,
@@ -39,7 +39,7 @@ def script(
     timeout_minutes: Ointlike = None,
 ) -> Step: ...
 def action(
-    name: StringLike,
+    name: Ostrlike,
     action: str,
     *,
     ref: Ostr = None,

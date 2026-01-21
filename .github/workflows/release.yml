@@ -24,22 +24,17 @@ jobs:
         uses: astral-sh/setup-uv@v7
         with:
           python-version: "3.9"
-      - name: Check Rust
-        run: cargo clippy
-      - name: Test Rust
-        run: cargo test
-      - name: Setup venv
-        run: |-
+      - run: cargo clippy
+      - run: cargo test
+      - run: |-
           uv venv
           . .venv/bin/activate
           echo PATH=$PATH >> $GITHUB_ENV
           uvx maturin develop --uv
-      - name: Check Python
-        run: |-
+      - run: |-
           uvx ruff check
           uvx ty check
-      - name: Test Python
-        run: uvx pytest
+      - run: uvx pytest
   linux:
     needs:
       - build-test-check
@@ -124,8 +119,7 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v6
-      - name: Write version file
-        run: printf "%s\n" ${{ join(matrix.platform.python_versions, ' ') }} >> version.txt
+      - run: printf "%s\n" ${{ join(matrix.platform.python_versions, ' ') }} >> version.txt
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
@@ -202,8 +196,7 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v6
-      - name: Write version file
-        run: printf "%s\n" ${{ join(matrix.platform.python_versions, ' ') }} >> version.txt
+      - run: printf "%s\n" ${{ join(matrix.platform.python_versions, ' ') }} >> version.txt
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
@@ -264,8 +257,7 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v6
-      - name: Write version file
-        run: printf "%s\n" ${{ join(matrix.platform.python_versions, ' ') }} >> version.txt
+      - run: printf "%s\n" ${{ join(matrix.platform.python_versions, ' ') }} >> version.txt
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
@@ -318,8 +310,7 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v6
-      - name: Write version file
-        run: printf "%s\n" ${{ join(matrix.platform.python_versions, ' ') }} >> version.txt
+      - run: printf "%s\n" ${{ join(matrix.platform.python_versions, ' ') }} >> version.txt
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
@@ -373,5 +364,4 @@ jobs:
         uses: actions/download-artifact@v7
       - name: Setup uv
         uses: astral-sh/setup-uv@v7
-      - name: Publish to PyPI
-        run: uv publish --trusted-publishing always wheels-*/*
+      - run: uv publish --trusted-publishing always wheels-*/*

@@ -63,8 +63,8 @@ Note that some of the type hints refer to "Expressions" (more on this later). Fu
 
 ```python
 def script(
-    name: str | StringExpression,
     *script: str | StringExpression,
+    name: str | StringExpression | None = None,
     condition: str | bool | None = None,
     working_directory: str | StringExpression | None = None,
     shell: str | None = None,
@@ -128,8 +128,8 @@ print(
                         ref='v4',
                         with_opts={'node-version': '20'},
                     ),
-                    script('Install bats', 'npm install -g bats'),
-                    script('Check version', 'bats -v'),
+                    script('npm install -g bats', name='Install bats'),
+                    script('bats -v'),
                 ],
                 runs_on='ubuntu-latest',
             )
@@ -160,11 +160,10 @@ jobs:
           node-version: "20"
       - name: Install bats
         run: npm install -g bats
-      - name: Check version
-        run: bats -v
+      - run: bats -v
 ```
 
-Notice that these aren't quite the same. Right now, the `yamloom` library requires names on actions and scripts as an attempt to enforce best practices (in the future I may relax this). The most obvious things one might notice about the above Python code is that it's longer and more verbose than just writing the YAML directly. The main benefit comes from type hints and function signatures which give you the set of allowed keys and their types without having to wade through GitHub's documentation. The other benefit of this library comes from using prebuilt actions. For example, we could have written the code as:
+Notice that these aren't quite the same. The most obvious things one might notice about the above Python code is that it's longer and more verbose than just writing the YAML directly. The main benefit comes from type hints and function signatures which give you the set of allowed keys and their types without having to wade through GitHub's documentation. The other benefit of this library comes from using prebuilt actions. For example, we could have written the code as:
 
 ```python
 from yamloom.actions.github.scm import checkout
@@ -179,8 +178,8 @@ print(
                 [
                     checkout(),
                     setup_node(node_version='20'),
-                    script('Install bats', 'npm install -g bats'),
-                    script('Check version', 'bats -v'),
+                    script('npm install -g bats', name='Install bats'),
+                    script('bats -v'),
                 ],
                 runs_on='ubuntu-latest',
             )

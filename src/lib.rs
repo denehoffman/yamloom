@@ -1596,7 +1596,7 @@ mod yamloom {
     #[pyclass]
     #[derive(Clone)]
     struct Step {
-        name: StringLike,
+        name: Option<StringLike>,
         step_action: StepAction,
         options: StepOptions,
     }
@@ -1621,7 +1621,7 @@ mod yamloom {
     impl Yamlable for Step {
         fn as_yaml(&self) -> Yaml {
             let mut entries = Hash::new();
-            entries.insert_yaml("name", &self.name);
+            entries.insert_yaml_opt("name", &self.name);
             entries.insert_yaml_opt("if", &self.options.condition);
             entries.insert_yaml_opt("uses", self.step_action.uses());
             entries.insert_yaml_opt("with", self.step_action.with());
@@ -1648,10 +1648,10 @@ mod yamloom {
     }
 
     #[pyfunction]
-    #[pyo3(signature = (name, *script, condition = None, working_directory = None, shell = None, id = None, env = None, continue_on_error = None, timeout_minutes= None))]
+    #[pyo3(signature = (*script, name = None, condition = None, working_directory = None, shell = None, id = None, env = None, continue_on_error = None, timeout_minutes= None))]
     fn script(
-        name: StringLike,
         script: &Bound<'_, PyTuple>,
+        name: Option<StringLike>,
         condition: Option<Either<BooleanExpression, String>>,
         working_directory: Option<StringLike>,
         shell: Option<String>,
@@ -1681,7 +1681,7 @@ mod yamloom {
         })
     }
     fn make_action(
-        name: StringLike,
+        name: Option<StringLike>,
         action: String,
         r#ref: Option<String>,
         with_opts: Option<Hash>,
@@ -1728,7 +1728,7 @@ mod yamloom {
     #[pyfunction]
     #[pyo3(signature = (name, action, *, r#ref = None, with_opts = None, args = None, entrypoint = None, condition = None, working_directory = None, shell = None, id = None, env = None, continue_on_error = None, timeout_minutes = None))]
     fn action(
-        name: StringLike,
+        name: Option<StringLike>,
         action: String,
         r#ref: Option<String>,
         with_opts: Option<Bound<PyDict>>,
