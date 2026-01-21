@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/denehoffman/yamloom/compare/yamloom-v0.2.0...yamloom-v0.2.1) (2026-01-21)
+
+
+### Bug Fixes
+
+* **github/release:** Correct typo in release-please action ([fec00a0](https://github.com/denehoffman/yamloom/commit/fec00a0217f696b0b24d5cffc6c2ccd708ec3a99))
+
 ## [0.2.0](https://github.com/denehoffman/yamloom/compare/yamloom-v0.1.1...yamloom-v0.2.0) (2026-01-21)
 
 
