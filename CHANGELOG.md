@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.2](https://github.com/denehoffman/yamloom/compare/yamloom-v0.2.1...yamloom-v0.2.2) (2026-01-22)
+
+
+### Bug Fixes
+
+* **toolchains/rust:** Update version on taike-e/install-action ([8308450](https://github.com/denehoffman/yamloom/commit/83084502b36415a7f188339dd8ffcdb16528f2af))
+
 ## [0.2.1](https://github.com/denehoffman/yamloom/compare/yamloom-v0.2.0...yamloom-v0.2.1) (2026-01-21)
 
 
