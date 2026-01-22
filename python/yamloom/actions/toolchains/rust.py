@@ -105,7 +105,7 @@ def install_rust_tool(
     *,
     tool: list[StringLike],
     name: Ostrlike = None,
-    version: str = 'v1',
+    version: str = 'v2',
     checksum: Oboollike = None,
     fallback: Ostrlike = None,
     args: Ostrlike = None,
