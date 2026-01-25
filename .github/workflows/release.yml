@@ -31,9 +31,9 @@ jobs:
           . .venv/bin/activate
           echo PATH=$PATH >> $GITHUB_ENV
           uvx maturin develop --uv
-      - run: |-
-          uvx ruff check
-          uvx ty check
+      - run: uv pip install pytest
+      - run: uvx ruff check
+      - run: uvx ty check
       - run: uvx pytest
   linux:
     needs:
