@@ -67,7 +67,7 @@ def create_build_job(
         return entry
 
     return Job(
-        [
+        steps=[
             checkout(),
             script(
                 f'printf "%s\n" {context.matrix.platform.python_versions.as_array().join(" ")} >> version.txt',
@@ -115,7 +115,7 @@ release_workflow = Workflow(
     permissions=Permissions(contents='read'),
     jobs={
         'build-test-check': Job(
-            [
+            steps=[
                 checkout(),
                 setup_rust(components=['clippy']),
                 setup_uv(python_version='3.9'),
@@ -201,7 +201,7 @@ release_workflow = Workflow(
             needs=['build-test-check'],
         ),
         'sdist': Job(
-            [
+            steps=[
                 checkout(),
                 maturin(name='Build sdist', command='sdist', args='--out dist'),
                 upload_artifact(path='dist', artifact_name='wheels-sdist'),
@@ -213,7 +213,7 @@ release_workflow = Workflow(
             | (context.github.event_name == 'workflow_dispatch'),
         ),
         'release': Job(
-            [
+            steps=[
                 download_artifact(),
                 setup_uv(),
                 script(
@@ -241,7 +241,7 @@ version_workflow = Workflow(
     permissions=Permissions(contents='write', issues='write', pull_requests='write'),
     jobs={
         'release-please': Job(
-            [
+            steps=[
                 action(
                     'Release Please Action',
                     'googleapis/release-please-action',
