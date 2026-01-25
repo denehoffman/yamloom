@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.4.0](https://github.com/denehoffman/yamloom/compare/yamloom-v0.3.0...yamloom-v0.4.0) (2026-01-25)
+
+
+### ⚠ BREAKING CHANGES
+
+* If `working_directory` or `shell` were passed to an `action` builder, the resulting action would either be invalid or these options would be ignored. These kwargs are no longer allowed in any actions or derived a ctions.
+
+### Features
+
+* Add Output classes for each action which has outputs, document inputs, and remove/modify some inconsistent inputs ([b0e40c3](https://github.com/denehoffman/yamloom/commit/b0e40c3d8f32ff9fc2d5100b47c3f0ecf7994f6b))
+
+
+### Bug Fixes
+
+* Steps which specify actions no longer include working_directory or she ([efac7d1](https://github.com/denehoffman/yamloom/commit/efac7d19cdca69d9057909b57055f550c9c31c38))
+
 ## [0.3.0](https://github.com/denehoffman/yamloom/compare/yamloom-v0.2.3...yamloom-v0.3.0) (2026-01-25)
 
 
