@@ -73,12 +73,10 @@ def codecov(
     use_pypi: Oboollike = None,
     verbose: Oboollike = None,
     codecov_version: Ostrlike = None,
-    codecov_working_directory: Ostrlike = None,
+    working_directory: Ostrlike = None,
     args: Ostrlike = None,
     entrypoint: Ostrlike = None,
     condition: Oboolstr = None,
-    working_directory: Ostrlike = None,
-    shell: Ostr = None,
     id: Ostr = None,  # noqa: A002
     env: Mapping[str, StringLike] | None = None,
     continue_on_error: Oboollike = None,
@@ -148,7 +146,7 @@ def codecov(
         'use_pypi': use_pypi,
         'verbose': verbose,
         'version': codecov_version,
-        'working-directory': codecov_working_directory,
+        'working-directory': working_directory,
     }
 
     options = {key: value for key, value in options.items() if value is not None}
@@ -165,8 +163,6 @@ def codecov(
         args=args,
         entrypoint=entrypoint,
         condition=condition,
-        working_directory=working_directory,
-        shell=shell,
         id=id,
         env=env,
         continue_on_error=continue_on_error,

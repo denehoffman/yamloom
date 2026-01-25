@@ -16,8 +16,8 @@ repos:
       - id: ty-check
         types_or: [ python, pyi ]
         additional_dependencies: [pytest]
-  # - repo: https://github.com/denehoffman/yamloom
-  #   rev: v0.1.0
-  #   hooks:
-  #     - id : yamloom-sync
-  #       files: ^(\.github/workflows/.*\.ya?ml|\.yamloom\.py)$
+  - repo: https://github.com/denehoffman/yamloom
+    rev: yamloom-v0.3.0
+    hooks:
+      - id : yamloom-sync
+        files: ^(\.github/workflows/.*\.ya?ml|\.yamloom\.py)$

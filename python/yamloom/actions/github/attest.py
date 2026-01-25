@@ -36,8 +36,6 @@ def attest_build_provenance(
     args: Ostrlike = None,
     entrypoint: Ostrlike = None,
     condition: Oboolstr = None,
-    working_directory: Ostrlike = None,
-    shell: Ostr = None,
     id: Ostr = None,  # noqa: A002
     env: Mapping[str, StringLike] | None = None,
     continue_on_error: Oboollike = None,
@@ -78,8 +76,6 @@ def attest_build_provenance(
         args=args,
         entrypoint=entrypoint,
         condition=condition,
-        working_directory=working_directory,
-        shell=shell,
         id=id,
         env=env,
         continue_on_error=continue_on_error,

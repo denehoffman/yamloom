@@ -33,14 +33,12 @@ def maturin(
     target: Ostrlike = None,
     rust_toolchain: Ostrlike = None,
     rustup_components: list[StringLike] | None = None,
-    maturin_working_directory: Ostrlike = None,
+    working_directory: Ostrlike = None,
     sccache: Oboollike = None,
     before_script_linux: Ostrlike = None,
     args: Ostrlike = None,
     entrypoint: Ostrlike = None,
     condition: Oboolstr = None,
-    working_directory: Ostrlike = None,
-    shell: Ostr = None,
     id: Ostr = None,  # noqa: A002
     env: Mapping[str, StringLike] | None = None,
     continue_on_error: Oboollike = None,
@@ -57,7 +55,7 @@ def maturin(
         'rustup-components': ','.join(str(s) for s in rustup_components)
         if rustup_components is not None
         else None,
-        'working-directory': maturin_working_directory,
+        'working-directory': working_directory,
         'sccache': sccache,
         'before-script-linux': before_script_linux,
     }
@@ -75,8 +73,6 @@ def maturin(
         args=args,
         entrypoint=entrypoint,
         condition=condition,
-        working_directory=working_directory,
-        shell=shell,
         id=id,
         env=env,
         continue_on_error=continue_on_error,
@@ -100,8 +96,6 @@ def pypi_publish(
     args: Ostrlike = None,
     entrypoint: Ostrlike = None,
     condition: Oboolstr = None,
-    working_directory: Ostrlike = None,
-    shell: Ostr = None,
     id: Ostr = None,  # noqa: A002
     env: Mapping[str, StringLike] | None = None,
     continue_on_error: Oboollike = None,
@@ -132,8 +126,6 @@ def pypi_publish(
         args=args,
         entrypoint=entrypoint,
         condition=condition,
-        working_directory=working_directory,
-        shell=shell,
         id=id,
         env=env,
         continue_on_error=continue_on_error,

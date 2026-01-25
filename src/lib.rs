@@ -2696,8 +2696,6 @@ mod yamloom {
         args: Option<StringLike>,
         entrypoint: Option<StringLike>,
         condition: Option<Either<BooleanExpression, String>>,
-        working_directory: Option<StringLike>,
-        shell: Option<String>,
         id: Option<String>,
         env: Option<PyMap<String, StringLike>>,
         continue_on_error: Option<BoolLike>,
@@ -2706,7 +2704,7 @@ mod yamloom {
         validate_step_options(
             &name,
             &condition,
-            &working_directory,
+            &None,
             &env,
             &continue_on_error,
             &timeout_minutes,
@@ -2738,8 +2736,8 @@ mod yamloom {
             },
             options: StepOptions {
                 condition,
-                working_directory,
-                shell,
+                working_directory: None,
+                shell: None,
                 id,
                 env,
                 continue_on_error,
@@ -2748,7 +2746,7 @@ mod yamloom {
         })
     }
     #[pyfunction]
-    #[pyo3(signature = (name, action, *, r#ref = None, with_opts = None, args = None, entrypoint = None, condition = None, working_directory = None, shell = None, id = None, env = None, continue_on_error = None, timeout_minutes = None))]
+    #[pyo3(signature = (name, action, *, r#ref = None, with_opts = None, args = None, entrypoint = None, condition = None, id = None, env = None, continue_on_error = None, timeout_minutes = None))]
     fn action(
         name: Option<StringLike>,
         action: String,
@@ -2757,8 +2755,6 @@ mod yamloom {
         args: Option<StringLike>,
         entrypoint: Option<StringLike>,
         condition: Option<Either<BooleanExpression, String>>,
-        working_directory: Option<StringLike>,
-        shell: Option<String>,
         id: Option<String>,
         env: Option<PyMap<String, StringLike>>,
         continue_on_error: Option<BoolLike>,
@@ -2775,8 +2771,6 @@ mod yamloom {
             args,
             entrypoint,
             condition,
-            working_directory,
-            shell,
             id,
             env,
             continue_on_error,
