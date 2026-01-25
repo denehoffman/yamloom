@@ -34,7 +34,7 @@ jobs:
       - run: uv pip install pytest
       - run: uvx ruff check
       - run: uvx ty check
-      - run: uvx pytest
+      - run: uv run pytest
   linux:
     needs:
       - build-test-check
