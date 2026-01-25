@@ -3470,12 +3470,12 @@ mod yamloom {
                 _ => {}
             }
             if uses.is_some() {
-                if let Some(steps) = &steps {
-                    if !steps.is_empty() {
-                        return Err(PyValueError::new_err(
-                            "Job using 'uses' cannot define 'steps'",
-                        ));
-                    }
+                if let Some(steps) = &steps
+                    && !steps.is_empty()
+                {
+                    return Err(PyValueError::new_err(
+                        "Job using 'uses' cannot define 'steps'",
+                    ));
                 }
             } else {
                 match &steps {
