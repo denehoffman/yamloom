@@ -22,3 +22,6 @@ fix:
 clean:
     cargo clean
     rm -r python/yamloom/_yamloom.abi3.so
+
+update-schema:
+    curl -L -o schemas/github-workflow.json https://www.schemastore.org/github-workflow.json

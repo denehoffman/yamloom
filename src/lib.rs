@@ -6,14 +6,18 @@ use std::{
     fs::{OpenOptions, create_dir_all},
     io::Write,
     path::Path,
+    str::FromStr,
 };
 
 use hashlink::LinkedHashMap;
+use jsonschema::Validator;
+use once_cell::sync::Lazy;
 use pyo3::{
     exceptions::{PyRuntimeError, PyValueError},
     prelude::*,
     types::{PyDict, PyDictMethods},
 };
+use serde_json::{Map, Number, Value};
 use yaml_rust2::{
     Yaml, YamlEmitter,
     yaml::{Array, Hash},
@@ -429,18 +433,18 @@ mod yamloom {
     use std::{collections::HashMap, fmt::Display, path::PathBuf, str::FromStr};
 
     use pyo3::{
-        exceptions::PyValueError,
+        exceptions::{PyRuntimeError, PyValueError},
         prelude::*,
         types::{PyBool, PyDict, PyFloat, PyInt, PyList, PyString, PyTuple},
     };
     use yaml_rust2::{
-        Yaml,
+        Yaml, YamlLoader,
         yaml::{Array, Hash},
     };
 
     use crate::{
         Either, InsertYaml, MaybeYamlable, PushYaml, PyMap, TryArray, TryHash, TryYamlable,
-        Yamlable,
+        WORKFLOW_SCHEMA, Yamlable, yaml_to_json,
         yamloom::expressions::{
             Allowed, ArrayExpression, BooleanExpression, Contexts, Funcs, NumberExpression,
             ObjectExpression, StringExpression, YamlExpression,
@@ -6079,6 +6083,24 @@ mod yamloom {
             })
         }
 
+        /// Run validation against the schemastore JSON schema for GitHub Workflows and raise a
+        /// RuntimeError if validation fails.
+        fn validate(&self) -> PyResult<()> {
+            let workflow_str = self.as_yaml_string()?;
+            let workflow_yaml_obj = YamlLoader::load_from_str(&workflow_str)
+                .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
+            let workflow_json = yaml_to_json(&workflow_yaml_obj[0])?;
+            WORKFLOW_SCHEMA
+                .validate(&workflow_json)
+                .map_err(|e| PyRuntimeError::new_err(e.to_string()))
+        }
+
+        /// Check if the workflow is valid YAML according to the schemastore JSON schema for GitHub
+        /// Workflows.
+        fn is_valid(&self) -> bool {
+            self.validate().is_ok()
+        }
+
         /// Write the YAML representation of the workflow to a file.
         ///
         /// Parameters
@@ -6087,9 +6109,15 @@ mod yamloom {
         ///     The path of the file to which the YAML is written.
         /// overwrite
         ///     If True, the file is overwritten if it already exists, otherwise nothing will happen.
+        /// validate
+        ///     If True, perform validation against the schemastore JSON schema for GitHub
+        ///     Workflows.
         ///
-        #[pyo3(signature = (path, *, overwrite = true))]
-        fn dump(&self, path: Bound<PyAny>, overwrite: bool) -> PyResult<()> {
+        #[pyo3(signature = (path, *, overwrite = true, validate = true))]
+        fn dump(&self, path: Bound<PyAny>, overwrite: bool, validate: bool) -> PyResult<()> {
+            if validate {
+                self.validate()?;
+            }
             if let Ok(p) = path.extract::<PathBuf>() {
                 self.write_to_file(p, overwrite)
             } else if let Ok(s) = path.extract::<String>() {
@@ -6120,3 +6148,49 @@ mod yamloom {
         }
     }
 }
+
+fn yaml_to_json(yaml: &Yaml) -> PyResult<Value> {
+    Ok(match yaml {
+        Yaml::Real(v) => {
+            Value::Number(Number::from_str(v).map_err(|e| PyRuntimeError::new_err(e.to_string()))?)
+        }
+        Yaml::Integer(v) => Value::Number(Number::from(*v)),
+        Yaml::String(s) => Value::String(s.clone()),
+        Yaml::Boolean(b) => Value::Bool(*b),
+        Yaml::Array(values) => Value::Array(
+            values
+                .iter()
+                .map(yaml_to_json)
+                .collect::<PyResult<_>>()?,
+        ),
+        Yaml::Hash(hash) => {
+            let mut obj = Map::new();
+            for (k, v) in hash.into_iter() {
+                let key = if let Yaml::String(s) = k {
+                    s.clone()
+                } else {
+                    return Err(PyRuntimeError::new_err("Unsupported key type"))?;
+                };
+                obj.insert(key, yaml_to_json(v)?);
+            }
+            Value::Object(obj)
+        }
+        Yaml::Null => Value::Null,
+        Yaml::Alias(_) | Yaml::BadValue => Err(PyRuntimeError::new_err("Unsupported YAML value"))?,
+    })
+}
+
+static WORKFLOW_SCHEMA: Lazy<Validator> = Lazy::new(|| {
+    let schema: Value = serde_json::from_str(include_str!("../schemas/github-workflow.json"))
+        .expect("invalid JSON schema");
+    jsonschema::options()
+        .with_base_uri(
+            schema
+                .get("$id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("urn:github-workflow-schema")
+                .to_string(),
+        )
+        .build(&schema)
+        .expect("schema compilation failed")
+});
