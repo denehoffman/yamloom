@@ -114,6 +114,9 @@ def create_build_job(
         needs=needs,
         condition=context.github.ref.startswith('refs/tags/')
         | (context.github.event_name == 'workflow_dispatch'),
+        env={'CFLAGS_aarch64_unknown_linux_gnu': '-D__ARM_ARCH=8'}
+        if name == 'linux'
+        else None,
     )
 
 
