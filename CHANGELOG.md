@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.1](https://github.com/denehoffman/yamloom/compare/yamloom-v0.4.0...yamloom-v0.4.1) (2026-01-26)
+
+
+### Features
+
+* Add schema validation to workflows ([f9e8eb8](https://github.com/denehoffman/yamloom/commit/f9e8eb8f3f1420898f6abed9a198b321c40cb00a))
+
+
+### Bug Fixes
+
+* Stop round-trip YAML validation by mapping Yaml::Real properly, add sublicenses for schemastore ([a5cbf69](https://github.com/denehoffman/yamloom/commit/a5cbf69bb9706a02c1eebaa630dbbcf5e42fadeb))
+
 ## [0.4.0](https://github.com/denehoffman/yamloom/compare/yamloom-v0.3.0...yamloom-v0.4.0) (2026-01-25)
 
 
