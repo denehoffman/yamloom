@@ -17,7 +17,11 @@ repos:
         types_or: [ python, pyi ]
         additional_dependencies: [pytest]
   - repo: https://github.com/denehoffman/yamloom
-    rev: yamloom-v0.3.0
+    rev: yamloom-v0.4.0
     hooks:
-      - id : yamloom-sync
+      - id: yamloom-sync
         files: ^(\.github/workflows/.*\.ya?ml|\.yamloom\.py)$
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.10
+    hooks:
+      - id: actionlint
