@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1](https://github.com/denehoffman/yamloom/compare/yamloom-v0.5.0...yamloom-v0.5.1) (2026-01-27)
+
+
+### Bug Fixes
+
+* Update output and types to reflect action.ymls ([10e8cb8](https://github.com/denehoffman/yamloom/commit/10e8cb86236d9553a6429ecf3d43c378d3096d5a))
+
 ## [0.5.0](https://github.com/denehoffman/yamloom/compare/yamloom-v0.4.1...yamloom-v0.5.0) (2026-01-27)
 
 
