@@ -65,12 +65,8 @@ class SetupMPI(ActionStep):
     recommended_permissions = None
 
     @classmethod
-    def mpi_home(cls, id: str) -> StringExpression:
-        return context.steps[id].outputs['mpi-home']
-
-    @classmethod
-    def mpi_bin(cls, id: str) -> StringExpression:
-        return context.steps[id].outputs['mpi-bin']
+    def mpi(cls, id: str) -> StringExpression:
+        return context.steps[id].outputs['mpi']
 
     def __new__(
         cls,
@@ -78,10 +74,6 @@ class SetupMPI(ActionStep):
         name: Ostrlike = None,
         version: str = 'v1',
         mpi: Ostrlike = None,
-        package: Ostrlike = None,
-        mpifc: Ostrlike = None,
-        mpif90: Ostrlike = None,
-        mpif77: Ostrlike = None,
         args: Ostrlike = None,
         entrypoint: Ostrlike = None,
         condition: Oboolstr = None,

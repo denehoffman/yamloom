@@ -4,7 +4,7 @@ from yamloom.actions.utils import validate_choice
 
 from typing import TYPE_CHECKING
 
-from ...expressions import context, StringExpression
+from ...expressions import context, StringExpression, BooleanExpression
 from ..._yamloom import ActionStep
 from ..types import (
     Oboollike,
@@ -90,8 +90,8 @@ class SetupNode(ActionStep):
     recommended_permissions = Permissions(contents='read')
 
     @classmethod
-    def cache_hit(cls, id: str) -> StringExpression:
-        return context.steps[id].outputs['cache-hit']
+    def cache_hit(cls, id: str) -> BooleanExpression:
+        return context.steps[id].outputs['cache-hit'].as_bool()
 
     @classmethod
     def node_version(cls, id: str) -> StringExpression:

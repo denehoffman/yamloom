@@ -3,7 +3,7 @@ from yamloom import Permissions
 
 from typing import TYPE_CHECKING
 
-from ...expressions import context, StringExpression
+from ...expressions import context, StringExpression, BooleanExpression
 from ..._yamloom import ActionStep
 from ..types import (
     Oboollike,
@@ -82,8 +82,8 @@ class SetupGo(ActionStep):
         return context.steps[id].outputs['go-version']
 
     @classmethod
-    def cache_hit(cls, id: str) -> StringExpression:
-        return context.steps[id].outputs['cache-hit']
+    def cache_hit(cls, id: str) -> BooleanExpression:
+        return context.steps[id].outputs['cache-hit'].as_bool()
 
     def __new__(
         cls,

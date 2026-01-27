@@ -4,7 +4,7 @@ from yamloom.actions.utils import check_string
 
 from typing import TYPE_CHECKING
 
-from ...expressions import context, StringExpression
+from ...expressions import context, StringExpression, BooleanExpression
 from ..._yamloom import ActionStep
 from ..types import (
     Obool,
@@ -308,16 +308,16 @@ class ReleasePlease(ActionStep):
     )
 
     @classmethod
-    def releases_created(cls, id: str) -> StringExpression:
-        return context.steps[id].outputs.releases_created
+    def releases_created(cls, id: str) -> BooleanExpression:
+        return context.steps[id].outputs.releases_created.as_bool()
 
     @classmethod
     def paths_released(cls, id: str) -> StringExpression:
         return context.steps[id].outputs.paths_released
 
     @classmethod
-    def prs_created(cls, id: str) -> StringExpression:
-        return context.steps[id].outputs.prs_created
+    def prs_created(cls, id: str) -> BooleanExpression:
+        return context.steps[id].outputs.prs_created.as_bool()
 
     @classmethod
     def pr(cls, id: str) -> StringExpression:
@@ -328,8 +328,8 @@ class ReleasePlease(ActionStep):
         return context.steps[id].outputs.prs
 
     @classmethod
-    def release_created(cls, id: str) -> StringExpression:
-        return context.steps[id].outputs.release_created
+    def release_created(cls, id: str) -> BooleanExpression:
+        return context.steps[id].outputs.release_created.as_bool()
 
     @classmethod
     def upload_url(cls, id: str) -> StringExpression:
@@ -368,9 +368,9 @@ class ReleasePlease(ActionStep):
         return context.steps[id].outputs.body
 
     @classmethod
-    def release_created_for(cls, id: str, path: str) -> StringExpression:
+    def release_created_for(cls, id: str, path: str) -> BooleanExpression:
         """Return ``<path>--release_created`` output for a component path."""
-        return context.steps[id].outputs[f'{path}--release_created']
+        return context.steps[id].outputs[f'{path}--release_created'].as_bool()
 
     @classmethod
     def upload_url_for(cls, id: str, path: str) -> StringExpression:

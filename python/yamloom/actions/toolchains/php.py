@@ -82,18 +82,6 @@ class SetupPhp(ActionStep):
     def php_version(cls, id: str) -> StringExpression:
         return context.steps[id].outputs['php-version']
 
-    @classmethod
-    def extensions(cls, id: str) -> StringExpression:
-        return context.steps[id].outputs.extensions
-
-    @classmethod
-    def ini_values(cls, id: str) -> StringExpression:
-        return context.steps[id].outputs['ini-values']
-
-    @classmethod
-    def coverage(cls, id: str) -> StringExpression:
-        return context.steps[id].outputs.coverage
-
     def __new__(
         cls,
         *,

@@ -4,7 +4,7 @@ from yamloom.actions.utils import validate_choice
 
 from typing import TYPE_CHECKING
 
-from ...expressions import context, StringExpression
+from ...expressions import context, StringExpression, BooleanExpression
 from ..._yamloom import ActionStep
 from ..types import (
     Oboollike,
@@ -94,8 +94,12 @@ class SetupPython(ActionStep):
         return context.steps[id].outputs['python-version']
 
     @classmethod
-    def cache_hit(cls, id: str) -> StringExpression:
-        return context.steps[id].outputs['cache-hit']
+    def cache_hit(cls, id: str) -> BooleanExpression:
+        return context.steps[id].outputs['cache-hit'].as_bool()
+
+    @classmethod
+    def python_path(cls, id: str) -> StringExpression:
+        return context.steps[id].outputs['python-version']
 
     def __new__(
         cls,
@@ -252,8 +256,32 @@ class SetupUV(ActionStep):
         return context.steps[id].outputs['uv-version']
 
     @classmethod
-    def cache_hit(cls, id: str) -> StringExpression:
-        return context.steps[id].outputs['cache-hit']
+    def uv_path(cls, id: str) -> StringExpression:
+        return context.steps[id].outputs['uv-path']
+
+    @classmethod
+    def uvx_path(cls, id: str) -> StringExpression:
+        return context.steps[id].outputs['uvx-path']
+
+    @classmethod
+    def cache_hit(cls, id: str) -> BooleanExpression:
+        return context.steps[id].outputs['cache-hit'].as_bool()
+
+    @classmethod
+    def cache_key(cls, id: str) -> StringExpression:
+        return context.steps[id].outputs['cache-key']
+
+    @classmethod
+    def venv(cls, id: str) -> StringExpression:
+        return context.steps[id].outputs['venv']
+
+    @classmethod
+    def python_version(cls, id: str) -> StringExpression:
+        return context.steps[id].outputs['python-version']
+
+    @classmethod
+    def python_cache_hit(cls, id: str) -> BooleanExpression:
+        return context.steps[id].outputs['python-cache-hit'].as_bool()
 
     def __new__(
         cls,
