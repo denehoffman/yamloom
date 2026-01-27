@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from yamloom.actions.github.artifacts import DownloadArtifact, UploadArtifact
 from yamloom.actions.github.release import ReleasePlease
 from yamloom.actions.packaging.python import Maturin
-from yamloom.actions.toolchains.python import SetupPython, SetupUv
+from yamloom.actions.toolchains.python import SetupPython, SetupUV
 from yamloom.actions.github.scm import Checkout
 from yamloom.expressions import context
 from yamloom import (
@@ -118,7 +118,7 @@ release_workflow = Workflow(
             steps=[
                 Checkout(),
                 SetupRust(components=['clippy']),
-                SetupUv(python_version='3.9'),
+                SetupUV(python_version='3.9'),
                 script('cargo clippy'),
                 script('cargo test'),
                 script(
@@ -217,7 +217,7 @@ release_workflow = Workflow(
         'release': Job(
             steps=[
                 DownloadArtifact(),
-                SetupUv(),
+                SetupUV(),
                 script(
                     'uv publish --trusted-publishing always wheels-*/*',
                 ),

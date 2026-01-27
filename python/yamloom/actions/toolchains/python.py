@@ -19,7 +19,7 @@ from ..types import (
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-__all__ = ['SetupPython', 'SetupUv']
+__all__ = ['SetupPython', 'SetupUV']
 
 
 class SetupPython(ActionStep):
@@ -158,7 +158,7 @@ class SetupPython(ActionStep):
         )
 
 
-class SetupUv(ActionStep):
+class SetupUV(ActionStep):
     """Set up a specific version of uv.
 
     Parameters
@@ -287,7 +287,7 @@ class SetupUv(ActionStep):
         env: Mapping[str, StringLike] | None = None,
         continue_on_error: Oboollike = None,
         timeout_minutes: Ointlike = None,
-    ) -> SetupUv:
+    ) -> SetupUV:
         options: dict[str, object] = {
             'version': uv_version,
             'version-file': uv_version_file,
