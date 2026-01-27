@@ -1,9 +1,10 @@
-from yamloom.actions.toolchains.rust import setup_rust
+from yamloom.actions.toolchains.rust import SetupRust
 from dataclasses import dataclass
-from yamloom.actions.github.artifacts import upload_artifact, download_artifact
-from yamloom.actions.packaging.python import maturin
-from yamloom.actions.toolchains.python import setup_python, setup_uv
-from yamloom.actions.github.scm import checkout
+from yamloom.actions.github.artifacts import DownloadArtifact, UploadArtifact
+from yamloom.actions.github.release import ReleasePlease
+from yamloom.actions.packaging.python import Maturin
+from yamloom.actions.toolchains.python import SetupPython, SetupUv
+from yamloom.actions.github.scm import Checkout
 from yamloom.expressions import context
 from yamloom import (
     Workflow,
@@ -17,7 +18,6 @@ from yamloom import (
     Strategy,
     script,
     Environment,
-    action,
 )
 
 
@@ -68,17 +68,17 @@ def create_build_job(
 
     return Job(
         steps=[
-            checkout(),
+            Checkout(),
             script(
                 f'printf "%s\n" {context.matrix.platform.python_versions.as_array().join(" ")} >> version.txt',
             ),
-            setup_python(
+            SetupPython(
                 python_version_file='version.txt',
                 architecture=context.matrix.platform.python_arch.as_str()
                 if name == 'windows'
                 else None,
             ),
-            maturin(
+            Maturin(
                 name='Build wheels',
                 target=context.matrix.platform.target.as_str(),
                 args=f'--release --out dist --interpreter {context.matrix.platform.python_versions.as_array().join(" ")}',
@@ -87,7 +87,7 @@ def create_build_job(
                 if name == 'musllinux'
                 else ('auto' if name == 'linux' else None),
             ),
-            upload_artifact(
+            UploadArtifact(
                 path='dist',
                 artifact_name=f'wheels-{name}-{context.matrix.platform.target}',
             ),
@@ -116,9 +116,9 @@ release_workflow = Workflow(
     jobs={
         'build-test-check': Job(
             steps=[
-                checkout(),
-                setup_rust(components=['clippy']),
-                setup_uv(python_version='3.9'),
+                Checkout(),
+                SetupRust(components=['clippy']),
+                SetupUv(python_version='3.9'),
                 script('cargo clippy'),
                 script('cargo test'),
                 script(
@@ -204,9 +204,9 @@ release_workflow = Workflow(
         ),
         'sdist': Job(
             steps=[
-                checkout(),
-                maturin(name='Build sdist', command='sdist', args='--out dist'),
-                upload_artifact(path='dist', artifact_name='wheels-sdist'),
+                Checkout(),
+                Maturin(name='Build sdist', command='sdist', args='--out dist'),
+                UploadArtifact(path='dist', artifact_name='wheels-sdist'),
             ],
             name='Build Source Distribution',
             runs_on='ubuntu-22.04',
@@ -216,8 +216,8 @@ release_workflow = Workflow(
         ),
         'release': Job(
             steps=[
-                download_artifact(),
-                setup_uv(),
+                DownloadArtifact(),
+                SetupUv(),
                 script(
                     'uv publish --trusted-publishing always wheels-*/*',
                 ),
@@ -244,15 +244,10 @@ version_workflow = Workflow(
     jobs={
         'release-please': Job(
             steps=[
-                action(
-                    'Release Please Action',
-                    'googleapis/release-please-action',
-                    ref='v4',
-                    with_opts={
-                        'token': context.secrets.RELEASE_PLEASE,
-                        'config-file': 'release-please-config.json',
-                        'manifest-file': '.release-please-manifest.json',
-                    },
+                ReleasePlease(
+                    token=context.secrets.RELEASE_PLEASE,
+                    config_file='release-please-config.json',
+                    manifest_file='.release-please-manifest.json',
                 )
             ],
             runs_on='ubuntu-latest',

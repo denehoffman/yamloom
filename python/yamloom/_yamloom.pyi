@@ -1,7 +1,7 @@
 from pathlib import Path
 from collections.abc import Mapping
 from types import ModuleType
-from typing import Any, Literal
+from typing import Any, Literal, TypeVar
 
 from typing_extensions import TypeAlias
 
@@ -27,6 +27,26 @@ expressions: ModuleType
 
 class Step: ...
 
+_TActionStep = TypeVar('_TActionStep', bound='ActionStep')
+
+class ActionStep(Step):
+    def __new__(
+        cls: type[_TActionStep],
+        name: Ostrlike,
+        action: str,
+        *,
+        ref: Ostr = None,
+        with_opts: Mapping | None = None,
+        args: Ostrlike = None,
+        entrypoint: Ostrlike = None,
+        condition: Oboolstr = None,
+        id: Ostr = None,  # noqa: A002
+        env: Mapping[str, StringLike] | None = None,
+        continue_on_error: Oboollike = None,
+        timeout_minutes: Ointlike = None,
+        recommended_permissions: Permissions | None = None,
+    ) -> _TActionStep: ...
+
 def script(
     *script: StringLike,
     name: Ostrlike = None,
@@ -51,6 +71,7 @@ def action(
     env: Mapping[str, StringLike] | None = None,
     continue_on_error: Oboollike = None,
     timeout_minutes: Ointlike = None,
+    recommended_permissions: Permissions | None = None,
 ) -> Step: ...
 
 RW: TypeAlias = Literal['read', 'write', 'none'] | None
@@ -162,6 +183,7 @@ class Job:
         steps: list[Step] | None = None,
         name: Ostrlike = None,
         permissions: Permissions | None = None,
+        use_recommended_permissions: bool = True,
         needs: list[str] | None = None,
         condition: Oboolstr = None,
         runs_on: RunsOnSpec | list[StringLike] | StringLike | None = None,
@@ -570,6 +592,7 @@ __all__ = [
     'RunsOn',
     'RunsOnSpec',
     'ScheduleEvent',
+    'ActionStep',
     'Step',
     'Strategy',
     'WatchEvent',

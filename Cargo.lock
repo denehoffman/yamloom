@@ -969,7 +969,6 @@ dependencies = [
  "bitflags",
  "hashlink",
  "jsonschema",
- "once_cell",
  "pyo3",
  "serde_json",
  "yaml-rust2",

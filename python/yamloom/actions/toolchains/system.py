@@ -1,12 +1,10 @@
 from __future__ import annotations
 from yamloom.actions.utils import validate_choice, check_string
 
-from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from ...expressions import context, StringExpression
-from ..._yamloom import Step
-from ..._yamloom import action
+from ..._yamloom import ActionStep
 from ..types import (
     Oboollike,
     Oboolstr,
@@ -19,49 +17,10 @@ from ..types import (
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-__all__ = ['setup_mpi', 'SetupMpiOutput']
+__all__ = ['SetupMPI']
 
 
-@dataclass(frozen=True)
-class SetupMpiOutput:
-    """Typed access to outputs produced by the setup_mpi step.
-
-    Parameters
-    ----------
-    id
-        The ``id`` of the setup_mpi step whose outputs should be referenced.
-        This should match the ``id`` passed to :func:`setup_mpi`.
-
-    Attributes
-    ----------
-    mpi
-        The installed MPI implementation name.
-
-    See Also
-    --------
-    GitHub repository: https://github.com/mpi4py/setup-mpi
-    """
-
-    id: str
-
-    @property
-    def mpi(self) -> StringExpression:
-        return context.steps[self.id].outputs.mpi
-
-
-def setup_mpi(
-    *,
-    name: Ostrlike = None,
-    version: str = 'v1',
-    mpi: Ostrlike = None,
-    args: Ostrlike = None,
-    entrypoint: Ostrlike = None,
-    condition: Oboolstr = None,
-    id: Ostr = None,  # noqa: A002
-    env: Mapping[str, StringLike] | None = None,
-    continue_on_error: Oboollike = None,
-    timeout_minutes: Ointlike = None,
-) -> Step:
+class SetupMPI(ActionStep):
     """Set up a specific MPI implementation.
 
     Parameters
@@ -102,36 +61,62 @@ def setup_mpi(
     --------
     GitHub repository: https://github.com/mpi4py/setup-mpi
     """
-    options: dict[str, object] = {
-        'mpi': validate_choice('mpi', mpi, ['mpich', 'openmpi', 'intelmpi', 'msmpi']),
-    }
 
-    options = {key: value for key, value in options.items() if value is not None}
+    recommended_permissions = None
 
-    mpi_names = {
-        'mpich': 'MPICH',
-        'openmpi': 'Open MPI',
-        'intelmpi': 'Intel MPI',
-        'msmpi': 'Microsoft MPI',
-    }
+    @classmethod
+    def mpi_home(cls, id: str) -> StringExpression:
+        return context.steps[id].outputs['mpi-home']
 
-    if name is None:
-        mpi_str = check_string(options.get('mpi'))
-        if mpi_str:
-            name = f'Setup {mpi_names[mpi_str]}'
-        else:
-            name = 'Setup MPI'
+    @classmethod
+    def mpi_bin(cls, id: str) -> StringExpression:
+        return context.steps[id].outputs['mpi-bin']
 
-    return action(
-        name,
-        'mpi4py/setup-mpi',
-        ref=version,
-        with_opts=options or None,
-        args=args,
-        entrypoint=entrypoint,
-        condition=condition,
-        id=id,
-        env=env,
-        continue_on_error=continue_on_error,
-        timeout_minutes=timeout_minutes,
-    )
+    def __new__(
+        cls,
+        *,
+        name: Ostrlike = None,
+        version: str = 'v1',
+        mpi: Ostrlike = None,
+        package: Ostrlike = None,
+        mpifc: Ostrlike = None,
+        mpif90: Ostrlike = None,
+        mpif77: Ostrlike = None,
+        args: Ostrlike = None,
+        entrypoint: Ostrlike = None,
+        condition: Oboolstr = None,
+        id: Ostr = None,  # noqa: A002
+        env: Mapping[str, StringLike] | None = None,
+        continue_on_error: Oboollike = None,
+        timeout_minutes: Ointlike = None,
+    ) -> SetupMPI:
+        options: dict[str, object] = {
+            'mpi': validate_choice(
+                'mpi', mpi, ['mpich', 'openmpi', 'intelmpi', 'msmpi']
+            ),
+        }
+
+        options = {key: value for key, value in options.items() if value is not None}
+
+        if name is None:
+            mpi_str = check_string(options.get('mpi'))
+            if mpi_str:
+                name = f'Setup {mpi_str}'
+            else:
+                name = 'Setup MPI'
+
+        return super().__new__(
+            cls,
+            name,
+            'mpi-action/setup-mpi',
+            ref=version,
+            with_opts=options or None,
+            args=args,
+            entrypoint=entrypoint,
+            condition=condition,
+            id=id,
+            env=env,
+            continue_on_error=continue_on_error,
+            timeout_minutes=timeout_minutes,
+            recommended_permissions=cls.recommended_permissions,
+        )

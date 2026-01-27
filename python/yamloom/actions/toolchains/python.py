@@ -1,160 +1,28 @@
 from __future__ import annotations
+from yamloom import Permissions
 from yamloom.actions.utils import validate_choice
 
-from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from ...expressions import context, StringExpression
-from ..._yamloom import Step
-from ..._yamloom import action
+from ..._yamloom import ActionStep
 from ..types import (
     Oboollike,
     Oboolstr,
     Ointlike,
     Ostr,
     Ostrlike,
-    StringLike,
     StringOrBoolLike,
+    StringLike,
 )
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-__all__ = ['setup_python', 'setup_uv', 'SetupPythonOutput', 'SetupUvOutput']
+__all__ = ['SetupPython', 'SetupUv']
 
 
-@dataclass(frozen=True)
-class SetupPythonOutput:
-    """Typed access to outputs produced by the setup_python step.
-
-    Parameters
-    ----------
-    id
-        The ``id`` of the setup_python step whose outputs should be referenced.
-        This should match the ``id`` passed to :func:`setup_python`.
-
-    Attributes
-    ----------
-    python_version
-        The installed Python or PyPy version.
-    cache_hit
-        A boolean value to indicate a cache entry was found.
-    python_path
-        The absolute path to the Python or PyPy executable.
-
-    See Also
-    --------
-    GitHub repository: https://github.com/actions/setup-python
-    """
-
-    id: str
-
-    @property
-    def python_version(self) -> StringExpression:
-        return context.steps[self.id].outputs['python-version']
-
-    @property
-    def cache_hit(self) -> StringExpression:
-        return context.steps[self.id].outputs['cache-hit']
-
-    @property
-    def python_path(self) -> StringExpression:
-        return context.steps[self.id].outputs['python-path']
-
-
-@dataclass(frozen=True)
-class SetupUvOutput:
-    """Typed access to outputs produced by the setup_uv step.
-
-    Parameters
-    ----------
-    id
-        The ``id`` of the setup_uv step whose outputs should be referenced.
-        This should match the ``id`` passed to :func:`setup_uv`.
-
-    Attributes
-    ----------
-    uv_version
-        The installed uv version.
-    uv_path
-        The path to the installed uv binary.
-    uvx_path
-        The path to the installed uvx binary.
-    cache_hit
-        A boolean value to indicate a cache entry was found.
-    cache_key
-        The cache key used for storing/restoring the cache.
-    venv
-        Path to the activated venv if activate-environment is true.
-    python_version
-        The Python version that was set.
-    python_cache_hit
-        A boolean value to indicate the Python cache entry was found.
-
-    See Also
-    --------
-    GitHub repository: https://github.com/astral-sh/setup-uv
-    """
-
-    id: str
-
-    @property
-    def uv_version(self) -> StringExpression:
-        return context.steps[self.id].outputs['uv-version']
-
-    @property
-    def uv_path(self) -> StringExpression:
-        return context.steps[self.id].outputs['uv-path']
-
-    @property
-    def uvx_path(self) -> StringExpression:
-        return context.steps[self.id].outputs['uvx-path']
-
-    @property
-    def cache_hit(self) -> StringExpression:
-        return context.steps[self.id].outputs['cache-hit']
-
-    @property
-    def cache_key(self) -> StringExpression:
-        return context.steps[self.id].outputs['cache-key']
-
-    @property
-    def venv(self) -> StringExpression:
-        return context.steps[self.id].outputs.venv
-
-    @property
-    def python_version(self) -> StringExpression:
-        return context.steps[self.id].outputs['python-version']
-
-    @property
-    def python_cache_hit(self) -> StringExpression:
-        return context.steps[self.id].outputs['python-cache-hit']
-
-
-def setup_python(
-    *,
-    name: Ostrlike = None,
-    version: str = 'v6',
-    python_version: StringLike | None = None,
-    python_version_file: Ostrlike = None,
-    check_latest: Oboollike = None,
-    architecture: Ostrlike = None,
-    token: Ostrlike = None,
-    cache: Ostrlike = None,
-    cache_dependency_path: Ostrlike = None,
-    update_environment: Oboollike = None,
-    allow_prereleases: Oboollike = None,
-    freethreaded: Oboollike = None,
-    pip_version: Ostrlike = None,
-    pip_install: Ostrlike = None,
-    args: Ostrlike = None,
-    entrypoint: Ostrlike = None,
-    condition: Oboolstr = None,
-    id: Ostr = None,  # noqa: A002
-    env: Mapping[str, StringLike] | None = None,
-    continue_on_error: Oboollike = None,
-    timeout_minutes: Ointlike = None,
-) -> Step:
+class SetupPython(ActionStep):
     """Set up a specific version of Python and add it to the PATH.
 
     Parameters
@@ -218,85 +86,79 @@ def setup_python(
     --------
     GitHub repository: https://github.com/actions/setup-python
     """
-    options: dict[str, object] = {
-        'python-version': python_version,
-        'python-version-file': python_version_file,
-        'check-latest': check_latest,
-        'architecture': architecture,
-        'token': token,
-        'cache': cache,
-        'cache-dependency-path': cache_dependency_path,
-        'update-environment': update_environment,
-        'allow-prereleases': allow_prereleases,
-        'freethreaded': freethreaded,
-        'pip-version': pip_version,
-        'pip-install': pip_install,
-    }
 
-    if cache is not None:
-        if isinstance(cache, str):
-            lowered = cache.lower()
-            if lowered not in {'pip', 'pipenv', 'poetry'}:
-                msg = "'cache' must be 'pip', 'pipenv' or 'poetry'"
-                raise ValueError(msg)
-            options['cache'] = lowered
-        else:
-            options['cache'] = cache
+    recommended_permissions = Permissions(contents='read')
 
-    options = {key: value for key, value in options.items() if value is not None}
+    @classmethod
+    def python_version(cls, id: str) -> StringExpression:
+        return context.steps[id].outputs['python-version']
 
-    if name is None:
-        name = 'Setup Python'
+    @classmethod
+    def cache_hit(cls, id: str) -> StringExpression:
+        return context.steps[id].outputs['cache-hit']
 
-    return action(
-        name,
-        'actions/setup-python',
-        ref=version,
-        with_opts=options or None,
-        args=args,
-        entrypoint=entrypoint,
-        condition=condition,
-        id=id,
-        env=env,
-        continue_on_error=continue_on_error,
-        timeout_minutes=timeout_minutes,
-    )
+    def __new__(
+        cls,
+        *,
+        name: Ostrlike = None,
+        version: str = 'v6',
+        python_version: StringLike | None = None,
+        python_version_file: Ostrlike = None,
+        check_latest: Oboollike = None,
+        architecture: Ostrlike = None,
+        update_environment: Oboollike = None,
+        token: Ostrlike = None,
+        cache: Ostrlike = None,
+        cache_dependency_path: Ostrlike = None,
+        allow_prereleases: Oboollike = None,
+        freethreaded: Oboollike = None,
+        pip_version: Ostrlike = None,
+        pip_install: Ostrlike = None,
+        args: Ostrlike = None,
+        entrypoint: Ostrlike = None,
+        condition: Oboolstr = None,
+        id: Ostr = None,  # noqa: A002
+        env: Mapping[str, StringLike] | None = None,
+        continue_on_error: Oboollike = None,
+        timeout_minutes: Ointlike = None,
+    ) -> SetupPython:
+        options: dict[str, object] = {
+            'python-version': python_version,
+            'python-version-file': python_version_file,
+            'check-latest': check_latest,
+            'architecture': architecture,
+            'token': token,
+            'cache': cache,
+            'cache-dependency-path': cache_dependency_path,
+            'update-environment': update_environment,
+            'allow-prereleases': allow_prereleases,
+            'freethreaded': freethreaded,
+            'pip-version': pip_version,
+            'pip-install': pip_install,
+        }
+        options = {key: value for key, value in options.items() if value is not None}
+
+        if name is None:
+            name = 'Setup Python'
+
+        return super().__new__(
+            cls,
+            name,
+            'actions/setup-python',
+            ref=version,
+            with_opts=options or None,
+            args=args,
+            entrypoint=entrypoint,
+            condition=condition,
+            id=id,
+            env=env,
+            continue_on_error=continue_on_error,
+            timeout_minutes=timeout_minutes,
+            recommended_permissions=cls.recommended_permissions,
+        )
 
 
-def setup_uv(
-    *,
-    name: Ostrlike = None,
-    version: str = 'v7',
-    uv_version: Ostrlike = None,
-    uv_version_file: Ostrlike = None,
-    resolution_strategy: Ostrlike = None,
-    python_version: Ostrlike = None,
-    activate_environment: Oboollike = None,
-    working_directory: Ostrlike = None,
-    checksum: Ostrlike = None,
-    github_token: Ostrlike = None,
-    enable_cache: StringOrBoolLike | None = None,
-    cache_dependency_glob: list[StringLike] | None = None,
-    restore_cache: Oboollike = None,
-    save_cache: Oboollike = None,
-    cache_suffix: Ostrlike = None,
-    cache_local_path: Ostrlike = None,
-    prune_cache: Oboollike = None,
-    cache_python: Oboollike = None,
-    ignore_nothing_to_cache: Oboollike = None,
-    ignore_empty_workdir: Oboollike = None,
-    tool_dir: Ostrlike = None,
-    tool_bin_dir: Ostrlike = None,
-    manifest_file: Ostrlike = None,
-    add_problem_matchers: Oboollike = None,
-    args: Ostrlike = None,
-    entrypoint: Ostrlike = None,
-    condition: Oboolstr = None,
-    id: Ostr = None,  # noqa: A002
-    env: Mapping[str, StringLike] | None = None,
-    continue_on_error: Oboollike = None,
-    timeout_minutes: Ointlike = None,
-) -> Step:
+class SetupUv(ActionStep):
     """Set up a specific version of uv.
 
     Parameters
@@ -380,61 +242,108 @@ def setup_uv(
     --------
     GitHub repository: https://github.com/astral-sh/setup-uv
     """
-    options: dict[str, object] = {
-        'version': uv_version,
-        'version-file': uv_version_file,
-        'resolution-strategy': validate_choice(
-            'resolution_strategy', resolution_strategy, ['highest', 'lowest']
-        ),
-        'python-version': python_version,
-        'activate-environment': activate_environment,
-        'working-directory': working_directory,
-        'checksum': checksum,
-        'github-token': github_token,
-        'enable-cache': enable_cache,
-        'cache-dependency-glob': '\n'.join(str(s) for s in cache_dependency_glob)
-        if cache_dependency_glob is not None
-        else None,
-        'restore-cache': restore_cache,
-        'save-cache': save_cache,
-        'cache-suffix': cache_suffix,
-        'cache-local-path': cache_local_path,
-        'prune-cache': prune_cache,
-        'cache-python': cache_python,
-        'ignore-nothing-to-cache': ignore_nothing_to_cache,
-        'ignore-empty-workdir': ignore_empty_workdir,
-        'tool-dir': tool_dir,
-        'tool-bin-dir': tool_bin_dir,
-        'manifest-file': manifest_file,
-        'add-problem-matchers': add_problem_matchers,
-    }
 
-    if enable_cache is not None:
-        if isinstance(enable_cache, str):
-            if enable_cache.lower() != 'auto':
-                msg = "'enable_cache' must be 'auto', true or false"
-                raise ValueError(msg)
-            options['enable-cache'] = 'auto'
-        elif isinstance(enable_cache, bool):
-            options['enable-cache'] = enable_cache
-        else:
-            options['enable-cache'] = enable_cache
+    recommended_permissions = None
 
-    options = {key: value for key, value in options.items() if value is not None}
+    @classmethod
+    def uv_version(cls, id: str) -> StringExpression:
+        return context.steps[id].outputs['uv-version']
 
-    if name is None:
-        name = 'Setup uv'
+    @classmethod
+    def cache_hit(cls, id: str) -> StringExpression:
+        return context.steps[id].outputs['cache-hit']
 
-    return action(
-        name,
-        'astral-sh/setup-uv',
-        ref=version,
-        with_opts=options or None,
-        args=args,
-        entrypoint=entrypoint,
-        condition=condition,
-        id=id,
-        env=env,
-        continue_on_error=continue_on_error,
-        timeout_minutes=timeout_minutes,
-    )
+    def __new__(
+        cls,
+        *,
+        name: Ostrlike = None,
+        version: str = 'v7',
+        uv_version: Ostrlike = None,
+        uv_version_file: Ostrlike = None,
+        resolution_strategy: Ostrlike = None,
+        python_version: Ostrlike = None,
+        activate_environment: Oboollike = None,
+        working_directory: Ostrlike = None,
+        checksum: Ostrlike = None,
+        github_token: Ostrlike = None,
+        enable_cache: StringOrBoolLike | None = None,
+        cache_dependency_glob: list[StringLike] | None = None,
+        restore_cache: Oboollike = None,
+        save_cache: Oboollike = None,
+        cache_suffix: Ostrlike = None,
+        cache_local_path: Ostrlike = None,
+        prune_cache: Oboollike = None,
+        cache_python: Oboollike = None,
+        ignore_nothing_to_cache: Oboollike = None,
+        ignore_empty_workdir: Oboollike = None,
+        tool_dir: Ostrlike = None,
+        tool_bin_dir: Ostrlike = None,
+        manifest_file: Ostrlike = None,
+        add_problem_matchers: Oboollike = None,
+        args: Ostrlike = None,
+        entrypoint: Ostrlike = None,
+        condition: Oboolstr = None,
+        id: Ostr = None,  # noqa: A002
+        env: Mapping[str, StringLike] | None = None,
+        continue_on_error: Oboollike = None,
+        timeout_minutes: Ointlike = None,
+    ) -> SetupUv:
+        options: dict[str, object] = {
+            'version': uv_version,
+            'version-file': uv_version_file,
+            'resolution-strategy': validate_choice(
+                'resolution_strategy', resolution_strategy, ['highest', 'lowest']
+            ),
+            'python-version': python_version,
+            'activate-environment': activate_environment,
+            'working-directory': working_directory,
+            'checksum': checksum,
+            'github-token': github_token,
+            'enable-cache': enable_cache,
+            'cache-dependency-glob': '\n'.join(str(s) for s in cache_dependency_glob)
+            if cache_dependency_glob is not None
+            else None,
+            'restore-cache': restore_cache,
+            'save-cache': save_cache,
+            'cache-suffix': cache_suffix,
+            'cache-local-path': cache_local_path,
+            'prune-cache': prune_cache,
+            'cache-python': cache_python,
+            'ignore-nothing-to-cache': ignore_nothing_to_cache,
+            'ignore-empty-workdir': ignore_empty_workdir,
+            'tool-dir': tool_dir,
+            'tool-bin-dir': tool_bin_dir,
+            'manifest-file': manifest_file,
+            'add-problem-matchers': add_problem_matchers,
+        }
+        if enable_cache is not None:
+            if isinstance(enable_cache, str):
+                if enable_cache.lower() != 'auto':
+                    msg = "'enable_cache' must be 'auto', true or false"
+                    raise ValueError(msg)
+                options['enable-cache'] = 'auto'
+            elif isinstance(enable_cache, bool):
+                options['enable-cache'] = enable_cache
+            else:
+                raise TypeError('enable_cache must be a bool or a string')
+
+        options = {key: value for key, value in options.items() if value is not None}
+
+        if name is None:
+            name = 'Setup uv'
+
+        return super().__new__(
+            cls,
+            name,
+            'astral-sh/setup-uv',
+            ref=version,
+            with_opts=options or None,
+            args=args,
+            entrypoint=entrypoint,
+            condition=condition,
+            id=id,
+            env=env,
+            continue_on_error=continue_on_error,
+            timeout_minutes=timeout_minutes,
+            recommended_permissions=cls.recommended_permissions,
+        )

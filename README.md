@@ -41,6 +41,7 @@ class Job:
         steps: list[Step] | None = None,
         name: str | StringExpression | None = None,
         permissions: Permissions | None = None,
+        use_recommended_permissions: bool = True,
         needs: list[str] | None = None,
         condition: str | BooleanExpression | None = None,
         runs_on: RunsOnSpec | list[str | StringExpression] | str | StringExpression | None = None,
@@ -60,6 +61,8 @@ class Job:
         secrets: JobSecrets | None = None,
     ) -> None: ...
 ```
+
+When ``use_recommended_permissions`` is True, job permissions are merged with any recommended permissions provided by steps.
 
 Note that some of the type hints refer to "Expressions" (more on this later). Furthermore, `Jobs` contain a sequence of `Step` objects, which cannot be constructed directly but instead are formed from either scripts or actions:
 
@@ -166,8 +169,8 @@ jobs:
 Notice that these aren't quite the same. The most obvious things one might notice about the above Python code is that it's longer and more verbose than just writing the YAML directly. The main benefit comes from type hints and function signatures which give you the set of allowed keys and their types without having to wade through GitHub's documentation. The other benefit of this library comes from using prebuilt actions. For example, we could have written the code as:
 
 ```python
-from yamloom.actions.github.scm import checkout
-from yamloom.actions.toolchains.node import setup_node
+from yamloom.actions.github.scm import Checkout
+from yamloom.actions.toolchains.node import SetupNode
 from yamloom.expressions import context
 from yamloom import Workflow, Events, PushEvent, Job, script
 
@@ -176,8 +179,8 @@ print(
         jobs={
             'check-bats-version': Job(
                 steps=[
-                    checkout(),
-                    setup_node(node_version='20'),
+                    Checkout(),
+                    SetupNode(node_version='20'),
                     script('npm install -g bats', name='Install bats'),
                     script('bats -v'),
                 ],
@@ -199,7 +202,7 @@ GitHub defines a syntax for expressions which are enclosed in `${{ ... }}` delim
 
 ### Custom actions
 
-To implement a custom action, all that's needed is a function that ends up calling the `action` function provided by this library. Because it's all just code, it's fairly easy to distribute third-party actions as Python libraries (or by extending existing Python libraries). This repository is also open to contributions, and I plan to make it host a more curated set of essential actions that can be used with most important workflows.
+To implement a custom action, define a class that subclasses ``ActionStep`` and implement ``__new__`` to call ``super().__new__`` with the action name and options. Because it's all just code, it's fairly easy to distribute third-party actions as Python libraries (or by extending existing Python libraries). This repository is also open to contributions, and I plan to make it host a more curated set of essential actions that can be used with most important workflows.
 
 ## CLI Usage
 

@@ -1,11 +1,10 @@
 from __future__ import annotations
+from yamloom import Permissions
 
-from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from ...expressions import context, StringExpression
-from ..._yamloom import Step
-from ..._yamloom import action
+from ..._yamloom import ActionStep
 from ..types import (
     Oboollike,
     Oboolstr,
@@ -18,61 +17,10 @@ from ..types import (
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-__all__ = ['setup_go', 'SetupGoOutput']
+__all__ = ['SetupGo']
 
 
-@dataclass(frozen=True)
-class SetupGoOutput:
-    """Typed access to outputs produced by the setup_go step.
-
-    Parameters
-    ----------
-    id
-        The ``id`` of the setup_go step whose outputs should be referenced. This
-        should match the ``id`` passed to :func:`setup_go`.
-
-    Attributes
-    ----------
-    go_version
-        The installed Go version.
-    cache_hit
-        A boolean value to indicate if a cache was hit.
-
-    See Also
-    --------
-    GitHub repository: https://github.com/actions/setup-go
-    """
-
-    id: str
-
-    @property
-    def go_version(self) -> StringExpression:
-        return context.steps[self.id].outputs['go-version']
-
-    @property
-    def cache_hit(self) -> StringExpression:
-        return context.steps[self.id].outputs['cache-hit']
-
-
-def setup_go(
-    *,
-    name: Ostrlike = None,
-    version: str = 'v6',
-    go_version: Ostrlike = None,
-    go_version_file: Ostrlike = None,
-    check_latest: Oboollike = None,
-    architecture: Ostrlike = None,
-    token: Ostrlike = None,
-    cache: Oboollike = None,
-    cache_dependency_path: Ostrlike = None,
-    args: Ostrlike = None,
-    entrypoint: Ostrlike = None,
-    condition: Oboolstr = None,
-    id: Ostr = None,  # noqa: A002
-    env: Mapping[str, StringLike] | None = None,
-    continue_on_error: Oboollike = None,
-    timeout_minutes: Ointlike = None,
-) -> Step:
+class SetupGo(ActionStep):
     """Set up a Go environment and add it to the PATH.
 
     Parameters
@@ -126,30 +74,63 @@ def setup_go(
     --------
     GitHub repository: https://github.com/actions/setup-go
     """
-    options: dict[str, object] = {
-        'go-version': go_version,
-        'go-version-file': go_version_file,
-        'check-latest': check_latest,
-        'architecture': architecture,
-        'token': token,
-        'cache': cache,
-        'cache-dependency-path': cache_dependency_path,
-    }
-    options = {key: value for key, value in options.items() if value is not None}
 
-    if name is None:
-        name = 'Setup Go'
+    recommended_permissions = Permissions(contents='read')
 
-    return action(
-        name,
-        'actions/setup-go',
-        ref=version,
-        with_opts=options or None,
-        args=args,
-        entrypoint=entrypoint,
-        condition=condition,
-        id=id,
-        env=env,
-        continue_on_error=continue_on_error,
-        timeout_minutes=timeout_minutes,
-    )
+    @classmethod
+    def go_version(cls, id: str) -> StringExpression:
+        return context.steps[id].outputs['go-version']
+
+    @classmethod
+    def cache_hit(cls, id: str) -> StringExpression:
+        return context.steps[id].outputs['cache-hit']
+
+    def __new__(
+        cls,
+        *,
+        name: Ostrlike = None,
+        version: str = 'v6',
+        go_version: Ostrlike = None,
+        go_version_file: Ostrlike = None,
+        check_latest: Oboollike = None,
+        architecture: Ostrlike = None,
+        token: Ostrlike = None,
+        cache: Oboollike = None,
+        cache_dependency_path: Ostrlike = None,
+        args: Ostrlike = None,
+        entrypoint: Ostrlike = None,
+        condition: Oboolstr = None,
+        id: Ostr = None,  # noqa: A002
+        env: Mapping[str, StringLike] | None = None,
+        continue_on_error: Oboollike = None,
+        timeout_minutes: Ointlike = None,
+    ) -> SetupGo:
+        options: dict[str, object] = {
+            'go-version': go_version,
+            'go-version-file': go_version_file,
+            'check-latest': check_latest,
+            'architecture': architecture,
+            'token': token,
+            'cache': cache,
+            'cache-dependency-path': cache_dependency_path,
+        }
+        options = {key: value for key, value in options.items() if value is not None}
+
+        if name is None:
+            name = 'Setup Go'
+
+        return super().__new__(
+            cls,
+            name,
+            'actions/setup-go',
+            ref=version,
+            with_opts=options or None,
+            args=args,
+            entrypoint=entrypoint,
+            condition=condition,
+            id=id,
+            env=env,
+            continue_on_error=continue_on_error,
+            timeout_minutes=timeout_minutes,
+            recommended_permissions=cls.recommended_permissions,
+        )

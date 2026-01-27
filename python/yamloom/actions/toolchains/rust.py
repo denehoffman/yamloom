@@ -1,12 +1,10 @@
 from __future__ import annotations
 from yamloom.actions.utils import validate_choice
 
-from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from ...expressions import context, StringExpression
-from ..._yamloom import Step
-from ..._yamloom import action
+from ..._yamloom import ActionStep
 from ..types import (
     Oboollike,
     Oboolstr,
@@ -19,83 +17,10 @@ from ..types import (
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-__all__ = ['install_rust_tool', 'setup_rust', 'SetupRustOutput']
+__all__ = ['InstallRustTool', 'SetupRust']
 
 
-@dataclass(frozen=True)
-class SetupRustOutput:
-    """Typed access to outputs produced by the setup_rust step.
-
-    Parameters
-    ----------
-    id
-        The ``id`` of the setup_rust step whose outputs should be referenced.
-        This should match the ``id`` passed to :func:`setup_rust`.
-
-    Attributes
-    ----------
-    rustc_version
-        Version as reported by ``rustc --version``.
-    cargo_version
-        Version as reported by ``cargo --version``.
-    rustup_version
-        Version as reported by ``rustup --version``.
-    cachekey
-        Short hash of the rustc version, appropriate for use as a cache key.
-
-    See Also
-    --------
-    GitHub repository: https://github.com/actions-rust-lang/setup-rust-toolchain
-    """
-
-    id: str
-
-    @property
-    def rustc_version(self) -> StringExpression:
-        return context.steps[self.id].outputs['rustc-version']
-
-    @property
-    def cargo_version(self) -> StringExpression:
-        return context.steps[self.id].outputs['cargo-version']
-
-    @property
-    def rustup_version(self) -> StringExpression:
-        return context.steps[self.id].outputs['rustup-version']
-
-    @property
-    def cachekey(self) -> StringExpression:
-        return context.steps[self.id].outputs.cachekey
-
-
-def setup_rust(
-    *,
-    name: Ostrlike = None,
-    version: str = 'v1',
-    toolchain: Ostrlike = None,
-    target: Ostrlike = None,
-    components: list[StringLike] | None = None,
-    cache: Oboollike = None,
-    cache_directories: list[StringLike] | None = None,
-    cache_workspaces: list[StringLike] | None = None,
-    cache_on_failure: Oboollike = None,
-    cache_key: Ostrlike = None,
-    cache_shared_key: Ostrlike = None,
-    cache_bin: Oboollike = None,
-    cache_provider: Ostrlike = None,
-    cache_all_crates: Oboollike = None,
-    cache_workspace_crates: Oboollike = None,
-    matcher: Oboollike = None,
-    rustflags: Ostrlike = None,
-    override: Oboollike = None,
-    rust_src_dir: Ostrlike = None,
-    args: Ostrlike = None,
-    entrypoint: Ostrlike = None,
-    condition: Oboolstr = None,
-    id: Ostr = None,  # noqa: A002
-    env: Mapping[str, StringLike] | None = None,
-    continue_on_error: Oboollike = None,
-    timeout_minutes: Ointlike = None,
-) -> Step:
+class SetupRust(ActionStep):
     """Set up Rust toolchains with optional caching.
 
     Parameters
@@ -170,69 +95,105 @@ def setup_rust(
     --------
     GitHub repository: https://github.com/actions-rust-lang/setup-rust-toolchain
     """
-    options: dict[str, object] = {
-        'toolchain': toolchain,
-        'target': target,
-        'components': ','.join(str(s) for s in components)
-        if components is not None
-        else None,
-        'cache': cache,
-        'cache-directories': '\n'.join(str(s) for s in cache_directories)
-        if cache_directories is not None
-        else None,
-        'cache-workspaces': '\n'.join(str(s) for s in cache_workspaces)
-        if cache_workspaces is not None
-        else None,
-        'cache-on-failure': cache_on_failure,
-        'cache-key': cache_key,
-        'cache-shared-key': cache_shared_key,
-        'cache-bin': cache_bin,
-        'cache-provider': validate_choice(
-            'cache_provider', cache_provider, ['github', 'buildjet', 'warpbuild']
-        ),
-        'cache-all-crates': cache_all_crates,
-        'cache-workspace-crates': cache_workspace_crates,
-        'matcher': matcher,
-        'rustflags': rustflags,
-        'override': override,
-        'rust-src-dir': rust_src_dir,
-    }
 
-    options = {key: value for key, value in options.items() if value is not None}
+    recommended_permissions = None
 
-    if name is None:
-        name = 'Setup Rust'
+    @classmethod
+    def rustc_version(cls, id: str) -> StringExpression:
+        return context.steps[id].outputs['rustc-version']
 
-    return action(
-        name,
-        'actions-rust-lang/setup-rust-toolchain',
-        ref=version,
-        with_opts=options or None,
-        args=args,
-        entrypoint=entrypoint,
-        condition=condition,
-        id=id,
-        env=env,
-        continue_on_error=continue_on_error,
-        timeout_minutes=timeout_minutes,
-    )
+    @classmethod
+    def cargo_version(cls, id: str) -> StringExpression:
+        return context.steps[id].outputs['cargo-version']
+
+    @classmethod
+    def rustup_version(cls, id: str) -> StringExpression:
+        return context.steps[id].outputs['rustup-version']
+
+    @classmethod
+    def cachekey(cls, id: str) -> StringExpression:
+        return context.steps[id].outputs.cachekey
+
+    def __new__(
+        cls,
+        *,
+        name: Ostrlike = None,
+        version: str = 'v1',
+        toolchain: Ostrlike = None,
+        target: Ostrlike = None,
+        components: list[StringLike] | None = None,
+        cache: Oboollike = None,
+        cache_directories: list[StringLike] | None = None,
+        cache_workspaces: list[StringLike] | None = None,
+        cache_on_failure: Oboollike = None,
+        cache_key: Ostrlike = None,
+        cache_shared_key: Ostrlike = None,
+        cache_bin: Oboollike = None,
+        cache_provider: Ostrlike = None,
+        cache_all_crates: Oboollike = None,
+        cache_workspace_crates: Oboollike = None,
+        matcher: Oboollike = None,
+        rustflags: Ostrlike = None,
+        override: Oboollike = None,
+        rust_src_dir: Ostrlike = None,
+        args: Ostrlike = None,
+        entrypoint: Ostrlike = None,
+        condition: Oboolstr = None,
+        id: Ostr = None,  # noqa: A002
+        env: Mapping[str, StringLike] | None = None,
+        continue_on_error: Oboollike = None,
+        timeout_minutes: Ointlike = None,
+    ) -> SetupRust:
+        options: dict[str, object] = {
+            'toolchain': toolchain,
+            'target': target,
+            'components': ','.join(str(s) for s in components)
+            if components is not None
+            else None,
+            'cache': cache,
+            'cache-directories': '\n'.join(str(s) for s in cache_directories)
+            if cache_directories is not None
+            else None,
+            'cache-workspaces': '\n'.join(str(s) for s in cache_workspaces)
+            if cache_workspaces is not None
+            else None,
+            'cache-on-failure': cache_on_failure,
+            'cache-key': cache_key,
+            'cache-shared-key': cache_shared_key,
+            'cache-bin': cache_bin,
+            'cache-provider': validate_choice(
+                'cache_provider', cache_provider, ['github', 'buildjet', 'warpbuild']
+            ),
+            'cache-all-crates': cache_all_crates,
+            'cache-workspace-crates': cache_workspace_crates,
+            'matcher': matcher,
+            'rustflags': rustflags,
+            'override': override,
+            'rust-src-dir': rust_src_dir,
+        }
+        options = {key: value for key, value in options.items() if value is not None}
+
+        if name is None:
+            name = 'Setup Rust'
+
+        return super().__new__(
+            cls,
+            name,
+            'actions-rust-lang/setup-rust-toolchain',
+            ref=version,
+            with_opts=options or None,
+            args=args,
+            entrypoint=entrypoint,
+            condition=condition,
+            id=id,
+            env=env,
+            continue_on_error=continue_on_error,
+            timeout_minutes=timeout_minutes,
+            recommended_permissions=cls.recommended_permissions,
+        )
 
 
-def install_rust_tool(
-    *,
-    tool: list[StringLike],
-    name: Ostrlike = None,
-    version: str = 'v2',
-    checksum: Oboollike = None,
-    fallback: Ostrlike = None,
-    args: Ostrlike = None,
-    entrypoint: Ostrlike = None,
-    condition: Oboolstr = None,
-    id: Ostr = None,  # noqa: A002
-    env: Mapping[str, StringLike] | None = None,
-    continue_on_error: Oboollike = None,
-    timeout_minutes: Ointlike = None,
-) -> Step:
+class InstallRustTool(ActionStep):
     """Install development tools.
 
     Parameters
@@ -277,34 +238,49 @@ def install_rust_tool(
     --------
     GitHub repository: https://github.com/taiki-e/install-action
     """
-    if not tool:
-        msg = "at least one 'tool' must be specified"
-        raise ValueError(msg)
 
-    options: dict[str, object] = {
-        'tool': ','.join(str(s) for s in tool),
-        'checksum': checksum,
-        'fallback': validate_choice(
-            'fallback', fallback, ['none', 'cargo-binstall', 'cargo-install']
-        ),
-    }
+    recommended_permissions = None
 
-    options = {key: value for key, value in options.items() if value is not None}
+    def __new__(
+        cls,
+        *,
+        tool: list[StringLike],
+        name: Ostrlike = None,
+        version: str = 'v2',
+        checksum: Oboollike = None,
+        fallback: Ostrlike = None,
+        args: Ostrlike = None,
+        entrypoint: Ostrlike = None,
+        condition: Oboolstr = None,
+        id: Ostr = None,  # noqa: A002
+        env: Mapping[str, StringLike] | None = None,
+        continue_on_error: Oboollike = None,
+        timeout_minutes: Ointlike = None,
+    ) -> InstallRustTool:
+        options: dict[str, object] = {
+            'tool': ','.join(str(s) for s in tool),
+            'checksum': checksum,
+            'fallback': validate_choice(
+                'fallback', fallback, ['none', 'cargo-binstall', 'cargo-install']
+            ),
+        }
+        options = {key: value for key, value in options.items() if value is not None}
 
-    if name is None:
-        suffix = 's' if len(tool) > 1 else ''
-        name = f'Install Rust Tool{suffix}'
+        if name is None:
+            name = 'Install Rust Tool'
 
-    return action(
-        name,
-        'taiki-e/install-action',
-        ref=version,
-        with_opts=options or None,
-        args=args,
-        entrypoint=entrypoint,
-        condition=condition,
-        id=id,
-        env=env,
-        continue_on_error=continue_on_error,
-        timeout_minutes=timeout_minutes,
-    )
+        return super().__new__(
+            cls,
+            name,
+            'taiki-e/install-action',
+            ref=version,
+            with_opts=options or None,
+            args=args,
+            entrypoint=entrypoint,
+            condition=condition,
+            id=id,
+            env=env,
+            continue_on_error=continue_on_error,
+            timeout_minutes=timeout_minutes,
+            recommended_permissions=cls.recommended_permissions,
+        )

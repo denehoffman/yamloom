@@ -1,12 +1,11 @@
 from __future__ import annotations
+from yamloom import Permissions
 from yamloom.actions.utils import check_string
 
-from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from ...expressions import context, StringExpression
-from ..._yamloom import Step
-from ..._yamloom import action
+from ..._yamloom import ActionStep
 from ..types import (
     Obool,
     Oboollike,
@@ -22,88 +21,12 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
 __all__ = [
-    'release',
-    'release_please',
-    'ReleaseOutput',
-    'ReleasePleaseOutput',
+    'Release',
+    'ReleasePlease',
 ]
 
 
-@dataclass(frozen=True)
-class ReleaseOutput:
-    """Typed access to outputs produced by the release step.
-
-    Parameters
-    ----------
-    step_id
-        The ``id`` of the release step whose outputs should be referenced. This
-        should match the ``id`` passed to :func:`release`.
-
-    Attributes
-    ----------
-    url
-        URL to the Release HTML page.
-    release_id
-        Release ID.
-    upload_url
-        URL for uploading assets to the release.
-    assets
-        JSON array containing information about each uploaded asset.
-
-    See Also
-    --------
-    GitHub repository: https://github.com/softprops/action-gh-release
-    """
-
-    step_id: str
-
-    @property
-    def url(self) -> StringExpression:
-        return context.steps[self.step_id].outputs.url
-
-    @property
-    def release_id(self) -> StringExpression:
-        return context.steps[self.step_id].outputs.id
-
-    @property
-    def upload_url(self) -> StringExpression:
-        return context.steps[self.step_id].outputs.upload_url
-
-    @property
-    def assets(self) -> StringExpression:
-        return context.steps[self.step_id].outputs.assets
-
-
-def release(
-    *,
-    name: Ostrlike = None,
-    version: str = 'v2',
-    body: Ostr = None,
-    body_path: Ostr = None,
-    draft: Obool = None,
-    prerelease: Obool = None,
-    preserve_order: Obool = None,
-    files: Ostr = None,
-    working_directory: Ostr = None,
-    overwrite_files: Obool = None,
-    release_name: Ostr = None,
-    tag_name: Ostr = None,
-    fail_on_unmatched_files: Obool = None,
-    repository: Ostr = None,
-    target_commitish: Ostr = None,
-    token: Ostr = None,
-    discussion_category_name: Ostr = None,
-    generate_release_notes: Obool = None,
-    append_body: Obool = None,
-    make_latest: StringOrBoolLike | None = None,
-    args: Ostrlike = None,
-    entrypoint: Ostrlike = None,
-    condition: Oboolstr = None,
-    id: Ostr = None,  # noqa: A002
-    env: Mapping[str, StringLike] | None = None,
-    continue_on_error: Oboollike = None,
-    timeout_minutes: Ointlike = None,
-) -> Step:
+class Release(ActionStep):
     """Create a GitHub release.
 
     Parameters
@@ -186,81 +109,108 @@ def release(
     See Also
     --------
     GitHub repository: https://github.com/softprops/action-gh-release
+
+    Notes
+    -----
+    When the ``discussion_category_name`` field is used, you must also give this job the ``discussions='write'`` permission.
     """
-    options: dict[str, object] = {
-        'body': body,
-        'body_path': body_path,
-        'draft': draft,
-        'prerelease': prerelease,
-        'preserve_order': preserve_order,
-        'files': files,
-        'working_directory': working_directory,
-        'overwrite_files': overwrite_files,
-        'name': release_name,
-        'tag_name': tag_name,
-        'fail_on_unmatched_files': fail_on_unmatched_files,
-        'repository': repository,
-        'target_commitish': target_commitish,
-        'token': token,
-        'discussion_category_name': discussion_category_name,
-        'generate_release_notes': generate_release_notes,
-        'append_body': append_body,
-        'make_latest': make_latest,
-    }
-    options = {key: value for key, value in options.items() if value is not None}
 
-    if name is None:
-        repository_str = check_string(options.get('repository'))
-        if repository_str:
-            name = f"Make Release for '{repository_str}'"
-        else:
-            name = 'Make Release'
+    recommended_permissions = Permissions(contents='write')
 
-    return action(
-        name,
-        'softprops/action-gh-release',
-        ref=version,
-        with_opts=options or None,
-        args=args,
-        entrypoint=entrypoint,
-        condition=condition,
-        id=id,
-        env=env,
-        continue_on_error=continue_on_error,
-        timeout_minutes=timeout_minutes,
-    )
+    @classmethod
+    def url(cls, id: str) -> StringExpression:
+        return context.steps[id].outputs.url
+
+    @classmethod
+    def release_id(cls, id: str) -> StringExpression:
+        return context.steps[id].outputs.id
+
+    @classmethod
+    def upload_url(cls, id: str) -> StringExpression:
+        return context.steps[id].outputs.upload_url
+
+    @classmethod
+    def assets(cls, id: str) -> StringExpression:
+        return context.steps[id].outputs.assets
+
+    def __new__(
+        cls,
+        *,
+        name: Ostrlike = None,
+        version: str = 'v2',
+        body: Ostr = None,
+        body_path: Ostr = None,
+        draft: Obool = None,
+        prerelease: Obool = None,
+        preserve_order: Obool = None,
+        files: Ostr = None,
+        working_directory: Ostr = None,
+        overwrite_files: Obool = None,
+        release_name: Ostr = None,
+        tag_name: Ostr = None,
+        fail_on_unmatched_files: Obool = None,
+        repository: Ostr = None,
+        target_commitish: Ostr = None,
+        token: Ostr = None,
+        discussion_category_name: Ostr = None,
+        generate_release_notes: Obool = None,
+        append_body: Obool = None,
+        make_latest: StringOrBoolLike | None = None,
+        args: Ostrlike = None,
+        entrypoint: Ostrlike = None,
+        condition: Oboolstr = None,
+        id: Ostr = None,  # noqa: A002
+        env: Mapping[str, StringLike] | None = None,
+        continue_on_error: Oboollike = None,
+        timeout_minutes: Ointlike = None,
+    ) -> Release:
+        options: dict[str, object] = {
+            'body': body,
+            'body_path': body_path,
+            'draft': draft,
+            'prerelease': prerelease,
+            'preserve_order': preserve_order,
+            'files': files,
+            'working_directory': working_directory,
+            'overwrite_files': overwrite_files,
+            'name': release_name,
+            'tag_name': tag_name,
+            'fail_on_unmatched_files': fail_on_unmatched_files,
+            'repository': repository,
+            'target_commitish': target_commitish,
+            'token': token,
+            'discussion_category_name': discussion_category_name,
+            'generate_release_notes': generate_release_notes,
+            'append_body': append_body,
+            'make_latest': make_latest,
+        }
+        options = {key: value for key, value in options.items() if value is not None}
+
+        if name is None:
+            repository_str = check_string(options.get('repository'))
+            if repository_str:
+                name = f'Release {repository_str}'
+            else:
+                name = 'Create Release'
+
+        return super().__new__(
+            cls,
+            name,
+            'softprops/action-gh-release',
+            ref=version,
+            with_opts=options or None,
+            args=args,
+            entrypoint=entrypoint,
+            condition=condition,
+            id=id,
+            env=env,
+            continue_on_error=continue_on_error,
+            timeout_minutes=timeout_minutes,
+            recommended_permissions=cls.recommended_permissions,
+        )
 
 
-def release_please(
-    *,
-    name: Ostrlike = None,
-    version: str = 'v4',
-    token: Ostrlike = None,
-    release_type: Ostrlike = None,
-    path: Ostrlike = None,
-    target_branch: Ostrlike = None,
-    config_file: Ostrlike = None,
-    manifest_file: Ostrlike = None,
-    repo_url: Ostrlike = None,
-    github_api_url: Ostrlike = None,
-    github_graphql_url: Ostrlike = None,
-    fork: Oboollike = None,
-    include_component_in_tag: Oboollike = None,
-    proxy_server: Ostrlike = None,
-    skip_github_release: Oboollike = None,
-    skip_github_pull_request: Oboollike = None,
-    skip_labeling: Oboollike = None,
-    changelog_host: Ostrlike = None,
-    versioning_strategy: Ostrlike = None,
-    release_as: Ostrlike = None,
-    args: Ostrlike = None,
-    entrypoint: Ostrlike = None,
-    condition: Oboolstr = None,
-    id: Ostr = None,  # noqa: A002
-    env: Mapping[str, StringLike] | None = None,
-    continue_on_error: Oboollike = None,
-    timeout_minutes: Ointlike = None,
-) -> Step:
+class ReleasePlease(ActionStep):
     """Automated releases based on conventional commits.
 
     Parameters
@@ -333,93 +283,6 @@ def release_please(
     Step
         The generated release-please step.
 
-    See Also
-    --------
-    GitHub repository: https://github.com/googleapis/release-please-action
-    """
-    options: dict[str, object] = {
-        'token': token,
-        'release-type': release_type,
-        'path': path,
-        'target-branch': target_branch,
-        'config-file': config_file,
-        'manifest-file': manifest_file,
-        'repo-url': repo_url,
-        'github-api-url': github_api_url,
-        'github-graphql-url': github_graphql_url,
-        'fork': fork,
-        'include-component-in-tag': include_component_in_tag,
-        'proxy-server': proxy_server,
-        'skip-github-release': skip_github_release,
-        'skip-github-pull-request': skip_github_pull_request,
-        'skip-labeling': skip_labeling,
-        'changelog-host': changelog_host,
-        'versioning-strategy': versioning_strategy,
-        'release-as': release_as,
-    }
-    options = {key: value for key, value in options.items() if value is not None}
-
-    if name is None:
-        name = 'Run release-please'
-
-    return action(
-        name,
-        'googleapis/release-please-action',
-        ref=version,
-        with_opts=options or None,
-        args=args,
-        entrypoint=entrypoint,
-        condition=condition,
-        id=id,
-        env=env,
-        continue_on_error=continue_on_error,
-        timeout_minutes=timeout_minutes,
-    )
-
-
-@dataclass(frozen=True)
-class ReleasePleaseOutput:
-    """Typed access to outputs produced by the release_please step.
-
-    Parameters
-    ----------
-    id
-        The ``id`` of the release_please step whose outputs should be referenced.
-        This should match the ``id`` passed to :func:`release_please`.
-
-    Attributes
-    ----------
-    releases_created
-        ``true`` if any release was created, ``false`` otherwise.
-    paths_released
-        JSON string of the array of paths that had releases created.
-    prs_created
-        ``true`` if any pull request was created or updated.
-    pr
-        JSON string of the PullRequest object (unset if no release created).
-    prs
-        JSON string of the array of PullRequest objects (unset if no release created).
-    release_created
-        ``true`` if a root component release was created, ``false`` otherwise.
-    upload_url
-        Upload URL for the root component release.
-    html_url
-        HTML URL for the root component release.
-    tag_name
-        Tag name for the root component release.
-    version
-        Semver version for the root component release.
-    major
-        Major semver version for the root component release.
-    minor
-        Minor semver version for the root component release.
-    patch
-        Patch semver version for the root component release.
-    sha
-        SHA that a GitHub release was tagged at for the root component.
-    body
-        Release notes for the root component.
-
     Notes
     -----
     Root component outputs are only present when the release-please action is
@@ -432,104 +295,188 @@ class ReleasePleaseOutput:
     GitHub repository: https://github.com/googleapis/release-please-action
     """
 
-    id: str
+    recommended_permissions = Permissions(
+        contents='write', issues='write', pull_requests='write'
+    )
 
-    @property
-    def releases_created(self) -> StringExpression:
-        return context.steps[self.id].outputs.releases_created
+    @classmethod
+    def releases_created(cls, id: str) -> StringExpression:
+        return context.steps[id].outputs.releases_created
 
-    @property
-    def paths_released(self) -> StringExpression:
-        return context.steps[self.id].outputs.paths_released
+    @classmethod
+    def paths_released(cls, id: str) -> StringExpression:
+        return context.steps[id].outputs.paths_released
 
-    @property
-    def prs_created(self) -> StringExpression:
-        return context.steps[self.id].outputs.prs_created
+    @classmethod
+    def prs_created(cls, id: str) -> StringExpression:
+        return context.steps[id].outputs.prs_created
 
-    @property
-    def pr(self) -> StringExpression:
-        return context.steps[self.id].outputs.pr
+    @classmethod
+    def pr(cls, id: str) -> StringExpression:
+        return context.steps[id].outputs.pr
 
-    @property
-    def prs(self) -> StringExpression:
-        return context.steps[self.id].outputs.prs
+    @classmethod
+    def prs(cls, id: str) -> StringExpression:
+        return context.steps[id].outputs.prs
 
-    @property
-    def release_created(self) -> StringExpression:
-        return context.steps[self.id].outputs.release_created
+    @classmethod
+    def release_created(cls, id: str) -> StringExpression:
+        return context.steps[id].outputs.release_created
 
-    @property
-    def upload_url(self) -> StringExpression:
-        return context.steps[self.id].outputs.upload_url
+    @classmethod
+    def upload_url(cls, id: str) -> StringExpression:
+        return context.steps[id].outputs.upload_url
 
-    @property
-    def html_url(self) -> StringExpression:
-        return context.steps[self.id].outputs.html_url
+    @classmethod
+    def html_url(cls, id: str) -> StringExpression:
+        return context.steps[id].outputs.html_url
 
-    @property
-    def tag_name(self) -> StringExpression:
-        return context.steps[self.id].outputs.tag_name
+    @classmethod
+    def tag_name(cls, id: str) -> StringExpression:
+        return context.steps[id].outputs.tag_name
 
-    @property
-    def version(self) -> StringExpression:
-        return context.steps[self.id].outputs.version
+    @classmethod
+    def version(cls, id: str) -> StringExpression:
+        return context.steps[id].outputs.version
 
-    @property
-    def major(self) -> StringExpression:
-        return context.steps[self.id].outputs.major
+    @classmethod
+    def major(cls, id: str) -> StringExpression:
+        return context.steps[id].outputs.major
 
-    @property
-    def minor(self) -> StringExpression:
-        return context.steps[self.id].outputs.minor
+    @classmethod
+    def minor(cls, id: str) -> StringExpression:
+        return context.steps[id].outputs.minor
 
-    @property
-    def patch(self) -> StringExpression:
-        return context.steps[self.id].outputs.patch
+    @classmethod
+    def patch(cls, id: str) -> StringExpression:
+        return context.steps[id].outputs.patch
 
-    @property
-    def sha(self) -> StringExpression:
-        return context.steps[self.id].outputs.sha
+    @classmethod
+    def sha(cls, id: str) -> StringExpression:
+        return context.steps[id].outputs.sha
 
-    @property
-    def body(self) -> StringExpression:
-        return context.steps[self.id].outputs.body
+    @classmethod
+    def body(cls, id: str) -> StringExpression:
+        return context.steps[id].outputs.body
 
-    def release_created_for(self, path: str) -> StringExpression:
+    @classmethod
+    def release_created_for(cls, id: str, path: str) -> StringExpression:
         """Return ``<path>--release_created`` output for a component path."""
-        return context.steps[self.id].outputs[f'{path}--release_created']
+        return context.steps[id].outputs[f'{path}--release_created']
 
-    def upload_url_for(self, path: str) -> StringExpression:
+    @classmethod
+    def upload_url_for(cls, id: str, path: str) -> StringExpression:
         """Return ``<path>--upload_url`` output for a component path."""
-        return context.steps[self.id].outputs[f'{path}--upload_url']
+        return context.steps[id].outputs[f'{path}--upload_url']
 
-    def html_url_for(self, path: str) -> StringExpression:
+    @classmethod
+    def html_url_for(cls, id: str, path: str) -> StringExpression:
         """Return ``<path>--html_url`` output for a component path."""
-        return context.steps[self.id].outputs[f'{path}--html_url']
+        return context.steps[id].outputs[f'{path}--html_url']
 
-    def tag_name_for(self, path: str) -> StringExpression:
+    @classmethod
+    def tag_name_for(cls, id: str, path: str) -> StringExpression:
         """Return ``<path>--tag_name`` output for a component path."""
-        return context.steps[self.id].outputs[f'{path}--tag_name']
+        return context.steps[id].outputs[f'{path}--tag_name']
 
-    def version_for(self, path: str) -> StringExpression:
+    @classmethod
+    def version_for(cls, id: str, path: str) -> StringExpression:
         """Return ``<path>--version`` output for a component path."""
-        return context.steps[self.id].outputs[f'{path}--version']
+        return context.steps[id].outputs[f'{path}--version']
 
-    def major_for(self, path: str) -> StringExpression:
+    @classmethod
+    def major_for(cls, id: str, path: str) -> StringExpression:
         """Return ``<path>--major`` output for a component path."""
-        return context.steps[self.id].outputs[f'{path}--major']
+        return context.steps[id].outputs[f'{path}--major']
 
-    def minor_for(self, path: str) -> StringExpression:
+    @classmethod
+    def minor_for(cls, id: str, path: str) -> StringExpression:
         """Return ``<path>--minor`` output for a component path."""
-        return context.steps[self.id].outputs[f'{path}--minor']
+        return context.steps[id].outputs[f'{path}--minor']
 
-    def patch_for(self, path: str) -> StringExpression:
+    @classmethod
+    def patch_for(cls, id: str, path: str) -> StringExpression:
         """Return ``<path>--patch`` output for a component path."""
-        return context.steps[self.id].outputs[f'{path}--patch']
+        return context.steps[id].outputs[f'{path}--patch']
 
-    def sha_for(self, path: str) -> StringExpression:
+    @classmethod
+    def sha_for(cls, id: str, path: str) -> StringExpression:
         """Return ``<path>--sha`` output for a component path."""
-        return context.steps[self.id].outputs[f'{path}--sha']
+        return context.steps[id].outputs[f'{path}--sha']
 
-    def body_for(self, path: str) -> StringExpression:
+    @classmethod
+    def body_for(cls, id: str, path: str) -> StringExpression:
         """Return ``<path>--body`` output for a component path."""
-        return context.steps[self.id].outputs[f'{path}--body']
+        return context.steps[id].outputs[f'{path}--body']
+
+    def __new__(
+        cls,
+        *,
+        name: Ostrlike = None,
+        version: str = 'v4',
+        token: Ostrlike = None,
+        release_type: Ostrlike = None,
+        path: Ostrlike = None,
+        target_branch: Ostrlike = None,
+        config_file: Ostrlike = None,
+        manifest_file: Ostrlike = None,
+        repo_url: Ostrlike = None,
+        github_api_url: Ostrlike = None,
+        github_graphql_url: Ostrlike = None,
+        fork: Oboollike = None,
+        include_component_in_tag: Oboollike = None,
+        proxy_server: Ostrlike = None,
+        skip_github_release: Oboollike = None,
+        skip_github_pull_request: Oboollike = None,
+        skip_labeling: Oboollike = None,
+        changelog_host: Ostrlike = None,
+        versioning_strategy: Ostrlike = None,
+        release_as: Ostrlike = None,
+        args: Ostrlike = None,
+        entrypoint: Ostrlike = None,
+        condition: Oboolstr = None,
+        id: Ostr = None,  # noqa: A002
+        env: Mapping[str, StringLike] | None = None,
+        continue_on_error: Oboollike = None,
+        timeout_minutes: Ointlike = None,
+    ) -> ReleasePlease:
+        options: dict[str, object] = {
+            'token': token,
+            'release-type': release_type,
+            'path': path,
+            'target-branch': target_branch,
+            'config-file': config_file,
+            'manifest-file': manifest_file,
+            'repo-url': repo_url,
+            'github-api-url': github_api_url,
+            'github-graphql-url': github_graphql_url,
+            'fork': fork,
+            'include-component-in-tag': include_component_in_tag,
+            'proxy-server': proxy_server,
+            'skip-github-release': skip_github_release,
+            'skip-github-pull-request': skip_github_pull_request,
+            'skip-labeling': skip_labeling,
+            'changelog-host': changelog_host,
+            'versioning-strategy': versioning_strategy,
+            'release-as': release_as,
+        }
+        options = {key: value for key, value in options.items() if value is not None}
+
+        if name is None:
+            name = 'Run release-please'
+
+        return super().__new__(
+            cls,
+            name,
+            'googleapis/release-please-action',
+            ref=version,
+            with_opts=options or None,
+            args=args,
+            entrypoint=entrypoint,
+            condition=condition,
+            id=id,
+            env=env,
+            continue_on_error=continue_on_error,
+            timeout_minutes=timeout_minutes,
+            recommended_permissions=cls.recommended_permissions,
+        )

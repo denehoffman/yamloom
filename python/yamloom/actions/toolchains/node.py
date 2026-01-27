@@ -1,12 +1,11 @@
 from __future__ import annotations
+from yamloom import Permissions
 from yamloom.actions.utils import validate_choice
 
-from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from ...expressions import context, StringExpression
-from ..._yamloom import Step
-from ..._yamloom import action
+from ..._yamloom import ActionStep
 from ..types import (
     Oboollike,
     Oboolstr,
@@ -20,99 +19,10 @@ from ..types import (
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-__all__ = ['setup_node', 'setup_pnpm', 'SetupNodeOutput', 'SetupPnpmOutput']
+__all__ = ['SetupNode', 'SetupPnpm']
 
 
-@dataclass(frozen=True)
-class SetupNodeOutput:
-    """Typed access to outputs produced by the setup_node step.
-
-    Parameters
-    ----------
-    id
-        The ``id`` of the setup_node step whose outputs should be referenced.
-        This should match the ``id`` passed to :func:`setup_node`.
-
-    Attributes
-    ----------
-    cache_hit
-        A boolean value to indicate if a cache was hit.
-    node_version
-        The installed Node.js version.
-
-    See Also
-    --------
-    GitHub repository: https://github.com/actions/setup-node
-    """
-
-    id: str
-
-    @property
-    def cache_hit(self) -> StringExpression:
-        return context.steps[self.id].outputs['cache-hit']
-
-    @property
-    def node_version(self) -> StringExpression:
-        return context.steps[self.id].outputs['node-version']
-
-
-@dataclass(frozen=True)
-class SetupPnpmOutput:
-    """Typed access to outputs produced by the setup_pnpm step.
-
-    Parameters
-    ----------
-    id
-        The ``id`` of the setup_pnpm step whose outputs should be referenced.
-        This should match the ``id`` passed to :func:`setup_pnpm`.
-
-    Attributes
-    ----------
-    dest
-        Expanded path of ``dest``.
-    bin_dest
-        Location of ``pnpm`` and ``pnpx`` command.
-
-    See Also
-    --------
-    GitHub repository: https://github.com/pnpm/action-setup
-    """
-
-    id: str
-
-    @property
-    def dest(self) -> StringExpression:
-        return context.steps[self.id].outputs.dest
-
-    @property
-    def bin_dest(self) -> StringExpression:
-        return context.steps[self.id].outputs.bin_dest
-
-
-def setup_node(
-    *,
-    name: Ostrlike = None,
-    version: str = 'v6',
-    node_version: Ostrlike = None,
-    node_version_file: Ostrlike = None,
-    check_latest: Oboollike = None,
-    architecture: Ostrlike = None,
-    token: Ostrlike = None,
-    cache: Ostrlike = None,
-    package_manager_cache: Oboollike = None,
-    cache_dependency_path: Ostrlike = None,
-    registry_url: Ostrlike = None,
-    scope: Ostrlike = None,
-    mirror: Ostrlike = None,
-    mirror_token: Ostrlike = None,
-    args: Ostrlike = None,
-    entrypoint: Ostrlike = None,
-    condition: Oboolstr = None,
-    id: Ostr = None,  # noqa: A002
-    env: Mapping[str, StringLike] | None = None,
-    continue_on_error: Oboollike = None,
-    timeout_minutes: Ointlike = None,
-) -> Step:
+class SetupNode(ActionStep):
     """Set up a Node.js environment.
 
     Parameters
@@ -176,61 +86,81 @@ def setup_node(
     --------
     GitHub repository: https://github.com/actions/setup-node
     """
-    options: dict[str, object] = {
-        'node-version': node_version,
-        'node-version-file': node_version_file,
-        'check-latest': check_latest,
-        'architecture': architecture,
-        'token': token,
-        'cache': validate_choice('cache', cache, ['npm', 'yarn', 'pnpm']),
-        'package-manager-cache': package_manager_cache,
-        'cache-dependency-path': cache_dependency_path,
-        'registry-url': registry_url,
-        'scope': scope,
-        'mirror': mirror,
-        'mirror-token': mirror_token,
-    }
 
-    options = {key: value for key, value in options.items() if value is not None}
+    recommended_permissions = Permissions(contents='read')
 
-    if name is None:
-        name = 'Setup Node'
+    @classmethod
+    def cache_hit(cls, id: str) -> StringExpression:
+        return context.steps[id].outputs['cache-hit']
 
-    return action(
-        name,
-        'actions/setup-node',
-        ref=version,
-        with_opts=options or None,
-        args=args,
-        entrypoint=entrypoint,
-        condition=condition,
-        id=id,
-        env=env,
-        continue_on_error=continue_on_error,
-        timeout_minutes=timeout_minutes,
-    )
+    @classmethod
+    def node_version(cls, id: str) -> StringExpression:
+        return context.steps[id].outputs['node-version']
+
+    def __new__(
+        cls,
+        *,
+        name: Ostrlike = None,
+        version: str = 'v6',
+        node_version: Ostrlike = None,
+        node_version_file: Ostrlike = None,
+        check_latest: Oboollike = None,
+        architecture: Ostrlike = None,
+        token: Ostrlike = None,
+        cache: Ostrlike = None,
+        package_manager_cache: Oboollike = None,
+        cache_dependency_path: Ostrlike = None,
+        registry_url: Ostrlike = None,
+        scope: Ostrlike = None,
+        mirror: Ostrlike = None,
+        mirror_token: Ostrlike = None,
+        args: Ostrlike = None,
+        entrypoint: Ostrlike = None,
+        condition: Oboolstr = None,
+        id: Ostr = None,  # noqa: A002
+        env: Mapping[str, StringLike] | None = None,
+        continue_on_error: Oboollike = None,
+        timeout_minutes: Ointlike = None,
+    ) -> SetupNode:
+        options: dict[str, object] = {
+            'node-version': node_version,
+            'node-version-file': node_version_file,
+            'check-latest': check_latest,
+            'architecture': architecture,
+            'token': token,
+            'cache': validate_choice('cache', cache, ['npm', 'yarn', 'pnpm']),
+            'package-manager-cache': package_manager_cache,
+            'cache-dependency-path': cache_dependency_path,
+            'registry-url': registry_url,
+            'scope': scope,
+            'mirror': mirror,
+            'mirror-token': mirror_token,
+        }
+
+        options = {key: value for key, value in options.items() if value is not None}
+
+        if name is None:
+            name = 'Setup Node'
+
+        return super().__new__(
+            cls,
+            name,
+            'actions/setup-node',
+            ref=version,
+            with_opts=options or None,
+            args=args,
+            entrypoint=entrypoint,
+            condition=condition,
+            id=id,
+            env=env,
+            continue_on_error=continue_on_error,
+            timeout_minutes=timeout_minutes,
+            recommended_permissions=cls.recommended_permissions,
+        )
 
 
-def setup_pnpm(
-    *,
-    name: Ostrlike = None,
-    version: str = 'v4',
-    pnpm_version: Ostrlike = None,
-    dest: Ostrlike = None,
-    run_install: StringLike | BoolLike | None = None,
-    cache: Oboollike = None,
-    cache_dependency_path: Ostrlike | list[StringLike] = None,
-    package_json_file: Ostrlike = None,
-    standalone: Oboollike = None,
-    args: Ostrlike = None,
-    entrypoint: Ostrlike = None,
-    condition: Oboolstr = None,
-    id: Ostr = None,  # noqa: A002
-    env: Mapping[str, StringLike] | None = None,
-    continue_on_error: Oboollike = None,
-    timeout_minutes: Ointlike = None,
-) -> Step:
-    """Install pnpm package manager.
+class SetupPnpm(ActionStep):
+    """Set up pnpm.
 
     Parameters
     ----------
@@ -239,19 +169,11 @@ def setup_pnpm(
     version
         The branch, ref, or SHA of the action's repository to use.
     pnpm_version
-        Version of pnpm to install.
+        The pnpm version to use.
     dest
-        Where to store pnpm files.
+        The destination for pnpm.
     run_install
-        If specified, run ``pnpm install``.
-    cache
-        Whether to cache the pnpm store directory.
-    cache_dependency_path
-        File path to the pnpm lockfile for caching.
-    package_json_file
-        File path to the package.json to read ``packageManager`` configuration.
-    standalone
-        When true, installs @pnpm/exe to allow pnpm usage without Node.js.
+        Whether to run pnpm install.
     args
         The inputs for a Docker container which are passed to the container's entrypoint.
         This is a subkey of the ``with`` key of the generated step.
@@ -282,31 +204,63 @@ def setup_pnpm(
     --------
     GitHub repository: https://github.com/pnpm/action-setup
     """
-    options: dict[str, object] = {
-        'version': pnpm_version,
-        'dest': dest,
-        'run_install': run_install,
-        'cache': cache,
-        'cache_dependency_path': cache_dependency_path,
-        'package_json_file': package_json_file,
-        'standalone': standalone,
-    }
 
-    options = {key: value for key, value in options.items() if value is not None}
+    recommended_permissions = None
 
-    if name is None:
-        name = 'Setup pnpm'
+    @classmethod
+    def dest(cls, id: str) -> StringExpression:
+        return context.steps[id].outputs.dest
 
-    return action(
-        name,
-        'pnpm/action-setup',
-        ref=version,
-        with_opts=options or None,
-        args=args,
-        entrypoint=entrypoint,
-        condition=condition,
-        id=id,
-        env=env,
-        continue_on_error=continue_on_error,
-        timeout_minutes=timeout_minutes,
-    )
+    @classmethod
+    def bin_dest(cls, id: str) -> StringExpression:
+        return context.steps[id].outputs.bin_dest
+
+    def __new__(
+        cls,
+        *,
+        name: Ostrlike = None,
+        version: str = 'v4',
+        pnpm_version: Ostrlike = None,
+        dest: Ostrlike = None,
+        run_install: StringLike | BoolLike | None = None,
+        cache: Oboollike = None,
+        cache_dependency_path: Ostrlike | list[StringLike] = None,
+        package_json_file: Ostrlike = None,
+        standalone: Oboollike = None,
+        args: Ostrlike = None,
+        entrypoint: Ostrlike = None,
+        condition: Oboolstr = None,
+        id: Ostr = None,  # noqa: A002
+        env: Mapping[str, StringLike] | None = None,
+        continue_on_error: Oboollike = None,
+        timeout_minutes: Ointlike = None,
+    ) -> SetupPnpm:
+        options: dict[str, object] = {
+            'version': pnpm_version,
+            'dest': dest,
+            'run_install': run_install,
+            'cache': cache,
+            'cache_dependency_path': cache_dependency_path,
+            'package_json_file': package_json_file,
+            'standalone': standalone,
+        }
+        options = {key: value for key, value in options.items() if value is not None}
+
+        if name is None:
+            name = 'Setup pnpm'
+
+        return super().__new__(
+            cls,
+            name,
+            'pnpm/action-setup',
+            ref=version,
+            with_opts=options or None,
+            args=args,
+            entrypoint=entrypoint,
+            condition=condition,
+            id=id,
+            env=env,
+            continue_on_error=continue_on_error,
+            timeout_minutes=timeout_minutes,
+            recommended_permissions=cls.recommended_permissions,
+        )

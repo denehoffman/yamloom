@@ -1,12 +1,10 @@
 from __future__ import annotations
 from yamloom.actions.utils import validate_choice
 
-from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from ...expressions import context, StringExpression
-from ..._yamloom import Step
-from ..._yamloom import action
+from ..._yamloom import ActionStep
 from ..types import (
     Oboollike,
     Oboolstr,
@@ -19,56 +17,10 @@ from ..types import (
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-__all__ = ['setup_php', 'SetupPhpOutput']
+__all__ = ['SetupPhp']
 
 
-@dataclass(frozen=True)
-class SetupPhpOutput:
-    """Typed access to outputs produced by the setup_php step.
-
-    Parameters
-    ----------
-    id
-        The ``id`` of the setup_php step whose outputs should be referenced.
-        This should match the ``id`` passed to :func:`setup_php`.
-
-    Attributes
-    ----------
-    php_version
-        PHP version in semver format.
-
-    See Also
-    --------
-    GitHub repository: https://github.com/shivammathur/setup-php
-    """
-
-    id: str
-
-    @property
-    def php_version(self) -> StringExpression:
-        return context.steps[self.id].outputs['php-version']
-
-
-def setup_php(
-    *,
-    name: Ostrlike = None,
-    version: str = 'v2',
-    php_version: Ostrlike = None,
-    php_version_file: Ostrlike = None,
-    extensions: Ostrlike = None,
-    ini_file: Ostrlike = None,
-    ini_values: Ostrlike = None,
-    coverage: Ostrlike = None,
-    tools: Ostrlike = None,
-    github_token: Ostrlike = None,
-    args: Ostrlike = None,
-    entrypoint: Ostrlike = None,
-    condition: Oboolstr = None,
-    id: Ostr = None,  # noqa: A002
-    env: Mapping[str, StringLike] | None = None,
-    continue_on_error: Oboollike = None,
-    timeout_minutes: Ointlike = None,
-) -> Step:
+class SetupPhp(ActionStep):
     """Set up PHP.
 
     Parameters
@@ -123,33 +75,77 @@ def setup_php(
     --------
     GitHub repository: https://github.com/shivammathur/setup-php
     """
-    options: dict[str, object] = {
-        'php-version': php_version,
-        'php-version-file': php_version_file,
-        'extensions': extensions,
-        'ini-file': validate_choice(
-            'ini_file', ini_file, ['production', 'development', 'none']
-        ),
-        'ini-values': ini_values,
-        'coverage': validate_choice('coverage', coverage, ['xdebug', 'pcov', 'none']),
-        'tools': tools,
-        'github-token': github_token,
-    }
-    options = {key: value for key, value in options.items() if value is not None}
 
-    if name is None:
-        name = 'Setup PHP'
+    recommended_permissions = None
 
-    return action(
-        name,
-        'shivammathur/setup-php',
-        ref=version,
-        with_opts=options or None,
-        args=args,
-        entrypoint=entrypoint,
-        condition=condition,
-        id=id,
-        env=env,
-        continue_on_error=continue_on_error,
-        timeout_minutes=timeout_minutes,
-    )
+    @classmethod
+    def php_version(cls, id: str) -> StringExpression:
+        return context.steps[id].outputs['php-version']
+
+    @classmethod
+    def extensions(cls, id: str) -> StringExpression:
+        return context.steps[id].outputs.extensions
+
+    @classmethod
+    def ini_values(cls, id: str) -> StringExpression:
+        return context.steps[id].outputs['ini-values']
+
+    @classmethod
+    def coverage(cls, id: str) -> StringExpression:
+        return context.steps[id].outputs.coverage
+
+    def __new__(
+        cls,
+        *,
+        name: Ostrlike = None,
+        version: str = 'v2',
+        php_version: Ostrlike = None,
+        php_version_file: Ostrlike = None,
+        extensions: Ostrlike = None,
+        coverage: Ostrlike = None,
+        ini_file: Ostrlike = None,
+        ini_values: Ostrlike = None,
+        tools: Ostrlike = None,
+        github_token: Ostrlike = None,
+        args: Ostrlike = None,
+        entrypoint: Ostrlike = None,
+        condition: Oboolstr = None,
+        id: Ostr = None,  # noqa: A002
+        env: Mapping[str, StringLike] | None = None,
+        continue_on_error: Oboollike = None,
+        timeout_minutes: Ointlike = None,
+    ) -> SetupPhp:
+        options: dict[str, object] = {
+            'php-version': php_version,
+            'php-version-file': php_version_file,
+            'extensions': extensions,
+            'ini-file': validate_choice(
+                'ini_file', ini_file, ['production', 'development', 'none']
+            ),
+            'ini-values': ini_values,
+            'coverage': validate_choice(
+                'coverage', coverage, ['xdebug', 'pcov', 'none']
+            ),
+            'tools': tools,
+            'github-token': github_token,
+        }
+        options = {key: value for key, value in options.items() if value is not None}
+
+        if name is None:
+            name = 'Setup PHP'
+
+        return super().__new__(
+            cls,
+            name,
+            'shivammathur/setup-php',
+            ref=version,
+            with_opts=options or None,
+            args=args,
+            entrypoint=entrypoint,
+            condition=condition,
+            id=id,
+            env=env,
+            continue_on_error=continue_on_error,
+            timeout_minutes=timeout_minutes,
+            recommended_permissions=cls.recommended_permissions,
+        )

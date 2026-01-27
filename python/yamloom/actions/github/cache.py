@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from ...expressions import context, StringExpression
-from ..._yamloom import Step
-from ..._yamloom import action
+from ..._yamloom import ActionStep
 from ..types import (
     Obool,
     Oboollike,
@@ -21,102 +19,13 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
 __all__ = [
-    'cache',
-    'cache_restore',
-    'cache_save',
-    'CacheOutput',
-    'CacheRestoreOutput',
+    'Cache',
+    'CacheRestore',
+    'CacheSave',
 ]
 
 
-@dataclass(frozen=True)
-class CacheOutput:
-    """Typed access to outputs produced by the cache step.
-
-    Parameters
-    ----------
-    id
-        The ``id`` of the cache step whose outputs should be referenced. This
-        should match the ``id`` passed to :func:`cache`.
-
-    Attributes
-    ----------
-    cache_hit
-        A boolean value to indicate an exact match was found for the primary key.
-
-    See Also
-    --------
-    GitHub repository: https://github.com/actions/cache
-    """
-
-    id: str
-
-    @property
-    def cache_hit(self) -> StringExpression:
-        return context.steps[self.id].outputs['cache-hit']
-
-
-@dataclass(frozen=True)
-class CacheRestoreOutput:
-    """Typed access to outputs produced by the cache_restore step.
-
-    Parameters
-    ----------
-    id
-        The ``id`` of the cache_restore step whose outputs should be referenced.
-        This should match the ``id`` passed to :func:`cache_restore`.
-
-    Attributes
-    ----------
-    cache_hit
-        A boolean value to indicate an exact match was found for the primary key.
-    cache_primary_key
-        A resolved cache key for which cache match was attempted.
-    cache_matched_key
-        Key of the cache that was restored, either the primary key on cache-hit
-        or a partial/complete match of one of the restore keys.
-
-    See Also
-    --------
-    GitHub repository: https://github.com/actions/cache
-    """
-
-    id: str
-
-    @property
-    def cache_hit(self) -> StringExpression:
-        return context.steps[self.id].outputs['cache-hit']
-
-    @property
-    def cache_primary_key(self) -> StringExpression:
-        return context.steps[self.id].outputs['cache-primary-key']
-
-    @property
-    def cache_matched_key(self) -> StringExpression:
-        return context.steps[self.id].outputs['cache-matched-key']
-
-
-def cache(
-    *,
-    key: str,
-    name: Ostrlike = None,
-    version: str = 'v5',
-    path: list[str] | None = None,
-    restore_keys: list[str] | None = None,
-    upload_chunk_size: Ointlike = None,
-    enable_cross_os_archive: Obool = None,
-    fail_on_cache_miss: Obool = None,
-    lookup_only: Obool = None,
-    save_always: Obool = None,
-    segment_download_timeout_mins: Oint = None,
-    args: Ostrlike = None,
-    entrypoint: Ostrlike = None,
-    condition: Oboolstr = None,
-    id: Ostr = None,  # noqa: A002
-    env: Mapping[str, StringLike] | None = None,
-    continue_on_error: Oboollike = None,
-    timeout_minutes: Ointlike = None,
-) -> Step:
+class Cache(ActionStep):
     """Cache artifacts like dependencies and build outputs.
 
     Parameters
@@ -180,58 +89,68 @@ def cache(
     --------
     GitHub repository: https://github.com/actions/cache
     """
-    options: dict[str, object] = {
-        'key': key,
-        'path': list(path) if path is not None else None,
-        'restore-keys': list(restore_keys) if restore_keys is not None else None,
-        'upload-chunk-size': upload_chunk_size,
-        'enableCrossOsArchive': enable_cross_os_archive,
-        'fail-on-cache-miss': fail_on_cache_miss,
-        'lookup-only': lookup_only,
-        'save-always': save_always,
-    }
-    options = {key: value for key, value in options.items() if value is not None}
 
-    if name is None:
-        name = 'Save/Restore Cache'
+    recommended_permissions = None
 
-    if segment_download_timeout_mins is not None:
-        merged_env = dict(env or {})
-        merged_env['SEGMENT_DOWNLOAD_TIMEOUT_MINS'] = str(segment_download_timeout_mins)
-        env = merged_env
+    @classmethod
+    def cache_hit(cls, id: str) -> StringExpression:
+        return context.steps[id].outputs['cache-hit']
 
-    return action(
-        name,
-        'actions/cache',
-        ref=version,
-        with_opts=options or None,
-        args=args,
-        entrypoint=entrypoint,
-        condition=condition,
-        id=id,
-        env=env,
-        continue_on_error=continue_on_error,
-        timeout_minutes=timeout_minutes,
-    )
+    def __new__(
+        cls,
+        *,
+        key: str,
+        name: Ostrlike = None,
+        version: str = 'v5',
+        path: list[str] | None = None,
+        restore_keys: list[str] | None = None,
+        upload_chunk_size: Ointlike = None,
+        enable_cross_os_archive: Obool = None,
+        fail_on_cache_miss: Obool = None,
+        lookup_only: Obool = None,
+        save_always: Obool = None,
+        segment_download_timeout_mins: Oint = None,
+        args: Ostrlike = None,
+        entrypoint: Ostrlike = None,
+        condition: Oboolstr = None,
+        id: Ostr = None,  # noqa: A002
+        env: Mapping[str, StringLike] | None = None,
+        continue_on_error: Oboollike = None,
+        timeout_minutes: Ointlike = None,
+    ) -> Cache:
+        options: dict[str, object] = {
+            'key': key,
+            'path': list(path) if path is not None else None,
+            'restore-keys': list(restore_keys) if restore_keys is not None else None,
+            'upload-chunk-size': upload_chunk_size,
+            'enableCrossOsArchive': enable_cross_os_archive,
+            'fail-on-cache-miss': fail_on_cache_miss,
+            'lookup-only': lookup_only,
+            'save-always': save_always,
+        }
+        options = {key: value for key, value in options.items() if value is not None}
+
+        if name is None:
+            name = 'Cache'
+
+        return super().__new__(
+            cls,
+            name,
+            'actions/cache',
+            ref=version,
+            with_opts=options or None,
+            args=args,
+            entrypoint=entrypoint,
+            condition=condition,
+            id=id,
+            env=env,
+            continue_on_error=continue_on_error,
+            timeout_minutes=timeout_minutes,
+            recommended_permissions=cls.recommended_permissions,
+        )
 
 
-def cache_save(
-    *,
-    key: str,
-    name: Ostrlike = None,
-    version: str = 'v5',
-    path: list[str] | None = None,
-    upload_chunk_size: Ointlike = None,
-    enable_cross_os_archive: Obool = None,
-    segment_download_timeout_mins: Oint = None,
-    args: Ostrlike = None,
-    entrypoint: Ostrlike = None,
-    condition: Oboolstr = None,
-    id: Ostr = None,  # noqa: A002
-    env: Mapping[str, StringLike] | None = None,
-    continue_on_error: Oboollike = None,
-    timeout_minutes: Ointlike = None,
-) -> Step:
+class CacheSave(ActionStep):
     """Save cache artifacts like dependencies and build outputs.
 
     Parameters
@@ -281,56 +200,55 @@ def cache_save(
     --------
     GitHub repository: https://github.com/actions/cache
     """
-    options: dict[str, object] = {
-        'key': key,
-        'path': list(path) if path is not None else None,
-        'upload-chunk-size': upload_chunk_size,
-        'enableCrossOsArchive': enable_cross_os_archive,
-    }
-    options = {key: value for key, value in options.items() if value is not None}
 
-    if name is None:
-        name = 'Save Cache'
+    recommended_permissions = None
 
-    if segment_download_timeout_mins is not None:
-        merged_env = dict(env or {})
-        merged_env['SEGMENT_DOWNLOAD_TIMEOUT_MINS'] = str(segment_download_timeout_mins)
-        env = merged_env
+    def __new__(
+        cls,
+        *,
+        path: list[str],
+        key: str,
+        name: Ostrlike = None,
+        version: str = 'v5',
+        upload_chunk_size: Ointlike = None,
+        enable_cross_os_archive: Obool = None,
+        args: Ostrlike = None,
+        entrypoint: Ostrlike = None,
+        condition: Oboolstr = None,
+        id: Ostr = None,  # noqa: A002
+        env: Mapping[str, StringLike] | None = None,
+        continue_on_error: Oboollike = None,
+        timeout_minutes: Ointlike = None,
+    ) -> CacheSave:
+        options: dict[str, object] = {
+            'key': key,
+            'path': list(path) if path is not None else None,
+            'upload-chunk-size': upload_chunk_size,
+            'enableCrossOsArchive': enable_cross_os_archive,
+        }
+        options = {key: value for key, value in options.items() if value is not None}
 
-    return action(
-        name,
-        'actions/cache/save',
-        ref=version,
-        with_opts=options or None,
-        args=args,
-        entrypoint=entrypoint,
-        condition=condition,
-        id=id,
-        env=env,
-        continue_on_error=continue_on_error,
-        timeout_minutes=timeout_minutes,
-    )
+        if name is None:
+            name = 'Cache (save)'
+
+        return super().__new__(
+            cls,
+            name,
+            'actions/cache/save',
+            ref=version,
+            with_opts=options or None,
+            args=args,
+            entrypoint=entrypoint,
+            condition=condition,
+            id=id,
+            env=env,
+            continue_on_error=continue_on_error,
+            timeout_minutes=timeout_minutes,
+            recommended_permissions=cls.recommended_permissions,
+        )
 
 
-def cache_restore(
-    *,
-    key: StringLike,
-    name: Ostrlike = None,
-    version: str = 'v5',
-    path: list[StringLike] | None = None,
-    restore_keys: list[StringLike] | None = None,
-    enable_cross_os_archive: Oboollike = None,
-    fail_on_cache_miss: Oboollike = None,
-    lookup_only: Oboollike = None,
-    segment_download_timeout_mins: Ointlike = None,
-    args: Ostrlike = None,
-    entrypoint: Ostrlike = None,
-    condition: Oboolstr = None,
-    id: Ostr = None,  # noqa: A002
-    env: Mapping[str, StringLike] | None = None,
-    continue_on_error: Oboollike = None,
-    timeout_minutes: Ointlike = None,
-) -> Step:
+class CacheRestore(ActionStep):
     """Restore cache artifacts like dependencies and build outputs.
 
     Parameters
@@ -387,34 +305,67 @@ def cache_restore(
     --------
     GitHub repository: https://github.com/actions/cache
     """
-    options: dict[str, object] = {
-        'key': key,
-        'path': list(path) if path is not None else None,
-        'restore-keys': list(restore_keys) if restore_keys is not None else None,
-        'enableCrossOsArchive': enable_cross_os_archive,
-        'fail-on-cache-miss': fail_on_cache_miss,
-        'lookup-only': lookup_only,
-    }
-    options = {key: value for key, value in options.items() if value is not None}
 
-    if name is None:
-        name = 'Restore Cache'
+    recommended_permissions = None
 
-    if segment_download_timeout_mins is not None:
-        merged_env = dict(env or {})
-        merged_env['SEGMENT_DOWNLOAD_TIMEOUT_MINS'] = str(segment_download_timeout_mins)
-        env = merged_env
+    @classmethod
+    def cache_hit(cls, id: str) -> StringExpression:
+        return context.steps[id].outputs['cache-hit']
 
-    return action(
-        name,
-        'actions/cache/restore',
-        ref=version,
-        with_opts=options or None,
-        args=args,
-        entrypoint=entrypoint,
-        condition=condition,
-        id=id,
-        env=env,
-        continue_on_error=continue_on_error,
-        timeout_minutes=timeout_minutes,
-    )
+    @classmethod
+    def cache_primary_key(cls, id: str) -> StringExpression:
+        return context.steps[id].outputs['cache-primary-key']
+
+    @classmethod
+    def cache_matched_key(cls, id: str) -> StringExpression:
+        return context.steps[id].outputs['cache-matched-key']
+
+    def __new__(
+        cls,
+        *,
+        key: str,
+        name: Ostrlike = None,
+        version: str = 'v5',
+        path: list[str] | None = None,
+        restore_keys: list[str] | None = None,
+        upload_chunk_size: Ointlike = None,
+        enable_cross_os_archive: Obool = None,
+        fail_on_cache_miss: Obool = None,
+        lookup_only: Obool = None,
+        segment_download_timeout_mins: Oint = None,
+        args: Ostrlike = None,
+        entrypoint: Ostrlike = None,
+        condition: Oboolstr = None,
+        id: Ostr = None,  # noqa: A002
+        env: Mapping[str, StringLike] | None = None,
+        continue_on_error: Oboollike = None,
+        timeout_minutes: Ointlike = None,
+    ) -> CacheRestore:
+        options: dict[str, object] = {
+            'key': key,
+            'path': list(path) if path is not None else None,
+            'restore-keys': list(restore_keys) if restore_keys is not None else None,
+            'enableCrossOsArchive': enable_cross_os_archive,
+            'fail-on-cache-miss': fail_on_cache_miss,
+            'lookup-only': lookup_only,
+        }
+        options = {key: value for key, value in options.items() if value is not None}
+
+        if name is None:
+            name = 'Cache (restore)'
+
+        return super().__new__(
+            cls,
+            name,
+            'actions/cache/restore',
+            ref=version,
+            with_opts=options or None,
+            args=args,
+            entrypoint=entrypoint,
+            condition=condition,
+            id=id,
+            env=env,
+            continue_on_error=continue_on_error,
+            timeout_minutes=timeout_minutes,
+            recommended_permissions=cls.recommended_permissions,
+        )

@@ -1,12 +1,11 @@
 from __future__ import annotations
+from yamloom import Permissions
 from yamloom.actions.utils import validate_choice
 
-from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from ...expressions import context, StringExpression
-from ..._yamloom import Step
-from ..._yamloom import action
+from ..._yamloom import ActionStep
 from ..types import (
     Oboollike,
     Oboolstr,
@@ -20,105 +19,10 @@ from ..types import (
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-__all__ = ['create_pull_request', 'CreatePullRequestOutput']
+__all__ = ['CreatePullRequest']
 
 
-@dataclass(frozen=True)
-class CreatePullRequestOutput:
-    """Typed access to outputs produced by the create_pull_request step.
-
-    Parameters
-    ----------
-    id
-        The ``id`` of the create_pull_request step whose outputs should be
-        referenced. This should match the ``id`` passed to
-        :func:`create_pull_request`.
-
-    Attributes
-    ----------
-    pull_request_number
-        The pull request number.
-    pull_request_url
-        The URL of the pull request.
-    pull_request_operation
-        The pull request operation performed by the action, ``created``,
-        ``updated``, ``closed`` or ``none``.
-    pull_request_head_sha
-        The commit SHA of the pull request branch.
-    pull_request_branch
-        The branch name of the pull request.
-    pull_request_commits_verified
-        Whether GitHub considers the signature of the branch's commits to be
-        verified; ``true`` or ``false``.
-
-    See Also
-    --------
-    GitHub repository: https://github.com/peter-evans/create-pull-request
-    """
-
-    id: str
-
-    @property
-    def pull_request_number(self) -> StringExpression:
-        return context.steps[self.id].outputs['pull-request-number']
-
-    @property
-    def pull_request_url(self) -> StringExpression:
-        return context.steps[self.id].outputs['pull-request-url']
-
-    @property
-    def pull_request_operation(self) -> StringExpression:
-        return context.steps[self.id].outputs['pull-request-operation']
-
-    @property
-    def pull_request_head_sha(self) -> StringExpression:
-        return context.steps[self.id].outputs['pull-request-head-sha']
-
-    @property
-    def pull_request_branch(self) -> StringExpression:
-        return context.steps[self.id].outputs['pull-request-branch']
-
-    @property
-    def pull_request_commits_verified(self) -> StringExpression:
-        return context.steps[self.id].outputs['pull-request-commits-verified']
-
-
-def create_pull_request(
-    *,
-    name: Ostrlike = None,
-    version: str = 'v8',
-    token: Ostrlike = None,
-    branch_token: Ostrlike = None,
-    path: Ostrlike = None,
-    add_paths: Ostrlike = None,
-    commit_message: Ostrlike = None,
-    committer: Ostrlike = None,
-    author: Ostrlike = None,
-    signoff: Oboollike = None,
-    branch: Ostrlike = None,
-    delete_branch: Oboollike = None,
-    branch_suffix: Ostrlike = None,
-    base: Ostrlike = None,
-    push_to_fork: Ostrlike = None,
-    sign_commits: Oboollike = None,
-    title: Ostrlike = None,
-    body: Ostrlike = None,
-    body_path: Ostrlike = None,
-    labels: Ostrlike = None,
-    assignees: Ostrlike = None,
-    reviewers: Ostrlike = None,
-    team_reviewers: Ostrlike = None,
-    milestone: Ointlike = None,
-    draft: StringOrBoolLike | None = None,
-    maintainer_can_modify: Oboollike = None,
-    args: Ostrlike = None,
-    entrypoint: Ostrlike = None,
-    condition: Oboolstr = None,
-    id: Ostr = None,  # noqa: A002
-    env: Mapping[str, StringLike] | None = None,
-    continue_on_error: Oboollike = None,
-    timeout_minutes: Ointlike = None,
-) -> Step:
+class CreatePullRequest(ActionStep):
     """Creates a pull request for changes to your repository in the actions workspace.
 
     Parameters
@@ -224,50 +128,122 @@ def create_pull_request(
     See Also
     --------
     GitHub repository: https://github.com/peter-evans/create-pull-request
+
+    Notes
+    -----
+    This action requires you to explicitly allow GitHub Actions to create pull requests. This setting can be found in the repository's settings under ``Actions > General > Workflow permissions``.
     """
-    options: dict[str, object] = {
-        'token': token,
-        'branch-token': branch_token,
-        'path': path,
-        'add-paths': add_paths,
-        'commit-message': commit_message,
-        'committer': committer,
-        'author': author,
-        'signoff': signoff,
-        'branch': branch,
-        'delete-branch': delete_branch,
-        'branch-suffix': validate_choice(
-            'branch_suffix', branch_suffix, ['random', 'timestamp', 'short-commit-hash']
-        ),
-        'base': base,
-        'push-to-fork': push_to_fork,
-        'sign-commits': sign_commits,
-        'title': title,
-        'body': body,
-        'body-path': body_path,
-        'labels': labels,
-        'assignees': assignees,
-        'reviewers': reviewers,
-        'team-reviewers': team_reviewers,
-        'milestone': milestone,
-        'draft': draft,
-        'maintainer-can-modify': maintainer_can_modify,
-    }
-    options = {key: value for key, value in options.items() if value is not None}
 
-    if name is None:
-        name = 'Create Pull Request'
+    recommended_permissions = Permissions(contents='write', pull_requests='write')
 
-    return action(
-        name,
-        'peter-evans/create-pull-request',
-        ref=version,
-        with_opts=options or None,
-        args=args,
-        entrypoint=entrypoint,
-        condition=condition,
-        id=id,
-        env=env,
-        continue_on_error=continue_on_error,
-        timeout_minutes=timeout_minutes,
-    )
+    @classmethod
+    def pull_request_number(cls, id: str) -> StringExpression:
+        return context.steps[id].outputs['pull-request-number']
+
+    @classmethod
+    def pull_request_url(cls, id: str) -> StringExpression:
+        return context.steps[id].outputs['pull-request-url']
+
+    @classmethod
+    def pull_request_operation(cls, id: str) -> StringExpression:
+        return context.steps[id].outputs['pull-request-operation']
+
+    @classmethod
+    def pull_request_head_sha(cls, id: str) -> StringExpression:
+        return context.steps[id].outputs['pull-request-head-sha']
+
+    @classmethod
+    def pull_request_branch(cls, id: str) -> StringExpression:
+        return context.steps[id].outputs['pull-request-branch']
+
+    @classmethod
+    def pull_request_commits_verified(cls, id: str) -> StringExpression:
+        return context.steps[id].outputs['pull-request-commits-verified']
+
+    def __new__(
+        cls,
+        *,
+        name: Ostrlike = None,
+        version: str = 'v8',
+        token: Ostrlike = None,
+        branch_token: Ostrlike = None,
+        path: Ostrlike = None,
+        add_paths: Ostrlike = None,
+        commit_message: Ostrlike = None,
+        committer: Ostrlike = None,
+        author: Ostrlike = None,
+        signoff: Oboollike = None,
+        branch: Ostrlike = None,
+        delete_branch: Oboollike = None,
+        branch_suffix: Ostrlike = None,
+        base: Ostrlike = None,
+        push_to_fork: Ostrlike = None,
+        sign_commits: Oboollike = None,
+        title: Ostrlike = None,
+        body: Ostrlike = None,
+        body_path: Ostrlike = None,
+        labels: Ostrlike = None,
+        assignees: Ostrlike = None,
+        reviewers: Ostrlike = None,
+        team_reviewers: Ostrlike = None,
+        milestone: Ointlike = None,
+        draft: StringOrBoolLike | None = None,
+        maintainer_can_modify: Oboollike = None,
+        args: Ostrlike = None,
+        entrypoint: Ostrlike = None,
+        condition: Oboolstr = None,
+        id: Ostr = None,  # noqa: A002
+        env: Mapping[str, StringLike] | None = None,
+        continue_on_error: Oboollike = None,
+        timeout_minutes: Ointlike = None,
+    ) -> CreatePullRequest:
+        options: dict[str, object] = {
+            'token': token,
+            'branch-token': branch_token,
+            'path': path,
+            'add-paths': add_paths,
+            'commit-message': commit_message,
+            'committer': committer,
+            'author': author,
+            'signoff': signoff,
+            'branch': branch,
+            'delete-branch': delete_branch,
+            'branch-suffix': validate_choice(
+                'branch_suffix',
+                branch_suffix,
+                ['random', 'timestamp', 'short-commit-hash'],
+            ),
+            'base': base,
+            'push-to-fork': push_to_fork,
+            'sign-commits': sign_commits,
+            'title': title,
+            'body': body,
+            'body-path': body_path,
+            'labels': labels,
+            'assignees': assignees,
+            'reviewers': reviewers,
+            'team-reviewers': team_reviewers,
+            'milestone': milestone,
+            'draft': draft,
+            'maintainer-can-modify': maintainer_can_modify,
+        }
+        options = {key: value for key, value in options.items() if value is not None}
+
+        if name is None:
+            name = 'Create Pull Request'
+
+        return super().__new__(
+            cls,
+            name,
+            'peter-evans/create-pull-request',
+            ref=version,
+            with_opts=options or None,
+            args=args,
+            entrypoint=entrypoint,
+            condition=condition,
+            id=id,
+            env=env,
+            continue_on_error=continue_on_error,
+            timeout_minutes=timeout_minutes,
+            recommended_permissions=cls.recommended_permissions,
+        )

@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from ...expressions import context, StringExpression
-from ..._yamloom import Step
-from ..._yamloom import action
+from ..._yamloom import ActionStep
 from ..types import (
     Oboollike,
     Oboolstr,
@@ -18,78 +16,10 @@ from ..types import (
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-__all__ = ['setup_bun', 'SetupBunOutput']
+__all__ = ['SetupBun']
 
 
-@dataclass(frozen=True)
-class SetupBunOutput:
-    """Typed access to outputs produced by the setup_bun step.
-
-    Parameters
-    ----------
-    id
-        The ``id`` of the setup_bun step whose outputs should be referenced.
-        This should match the ``id`` passed to :func:`setup_bun`.
-
-    Attributes
-    ----------
-    bun_version
-        The version of Bun that was installed.
-    bun_revision
-        The revision of Bun that was installed.
-    bun_path
-        The path to the Bun executable.
-    bun_download_url
-        The URL from which Bun was downloaded.
-    cache_hit
-        Whether the Bun version was cached.
-
-    See Also
-    --------
-    GitHub repository: https://github.com/oven-sh/setup-bun
-    """
-
-    id: str
-
-    @property
-    def bun_version(self) -> StringExpression:
-        return context.steps[self.id].outputs['bun-version']
-
-    @property
-    def bun_revision(self) -> StringExpression:
-        return context.steps[self.id].outputs['bun-revision']
-
-    @property
-    def bun_path(self) -> StringExpression:
-        return context.steps[self.id].outputs['bun-path']
-
-    @property
-    def bun_download_url(self) -> StringExpression:
-        return context.steps[self.id].outputs['bun-download-url']
-
-    @property
-    def cache_hit(self) -> StringExpression:
-        return context.steps[self.id].outputs['cache-hit']
-
-
-def setup_bun(
-    *,
-    name: Ostrlike = None,
-    version: str = 'v2',
-    bun_version: Ostrlike = None,
-    bun_version_file: Ostrlike = None,
-    bun_download_url: Ostrlike = None,
-    registries: Ostrlike = None,
-    no_cache: Oboollike = None,
-    token: Ostrlike = None,
-    args: Ostrlike = None,
-    entrypoint: Ostrlike = None,
-    condition: Oboolstr = None,
-    id: Ostr = None,  # noqa: A002
-    env: Mapping[str, StringLike] | None = None,
-    continue_on_error: Oboollike = None,
-    timeout_minutes: Ointlike = None,
-) -> Step:
+class SetupBun(ActionStep):
     """Download, install, and set up Bun on the PATH.
 
     Parameters
@@ -141,29 +71,57 @@ def setup_bun(
     --------
     GitHub repository: https://github.com/oven-sh/setup-bun
     """
-    options: dict[str, object] = {
-        'bun-version': bun_version,
-        'bun-version-file': bun_version_file,
-        'bun-download-url': bun_download_url,
-        'registries': registries,
-        'no-cache': no_cache,
-        'token': token,
-    }
-    options = {key: value for key, value in options.items() if value is not None}
 
-    if name is None:
-        name = 'Setup Bun'
+    recommended_permissions = None
 
-    return action(
-        name,
-        'oven-sh/setup-bun',
-        ref=version,
-        with_opts=options or None,
-        args=args,
-        entrypoint=entrypoint,
-        condition=condition,
-        id=id,
-        env=env,
-        continue_on_error=continue_on_error,
-        timeout_minutes=timeout_minutes,
-    )
+    @classmethod
+    def bun_path(cls, id: str) -> StringExpression:
+        return context.steps[id].outputs['bun-path']
+
+    def __new__(
+        cls,
+        *,
+        name: Ostrlike = None,
+        version: str = 'v2',
+        bun_version: Ostrlike = None,
+        bun_version_file: Ostrlike = None,
+        bun_download_url: Ostrlike = None,
+        registries: Ostrlike = None,
+        no_cache: Oboollike = None,
+        token: Ostrlike = None,
+        args: Ostrlike = None,
+        entrypoint: Ostrlike = None,
+        condition: Oboolstr = None,
+        id: Ostr = None,  # noqa: A002
+        env: Mapping[str, StringLike] | None = None,
+        continue_on_error: Oboollike = None,
+        timeout_minutes: Ointlike = None,
+    ) -> SetupBun:
+        options: dict[str, object] = {
+            'bun-version': bun_version,
+            'bun-version-file': bun_version_file,
+            'bun-download-url': bun_download_url,
+            'registries': registries,
+            'no-cache': no_cache,
+            'token': token,
+        }
+        options = {key: value for key, value in options.items() if value is not None}
+
+        if name is None:
+            name = 'Setup bun'
+
+        return super().__new__(
+            cls,
+            name,
+            'oven-sh/setup-bun',
+            ref=version,
+            with_opts=options or None,
+            args=args,
+            entrypoint=entrypoint,
+            condition=condition,
+            id=id,
+            env=env,
+            continue_on_error=continue_on_error,
+            timeout_minutes=timeout_minutes,
+            recommended_permissions=cls.recommended_permissions,
+        )

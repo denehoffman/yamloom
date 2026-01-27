@@ -7,11 +7,11 @@ use std::{
     io::Write,
     path::Path,
     str::FromStr,
+    sync::LazyLock,
 };
 
 use hashlink::LinkedHashMap;
 use jsonschema::Validator;
-use once_cell::sync::Lazy;
 use pyo3::{
     exceptions::{PyRuntimeError, PyValueError},
     prelude::*,
@@ -112,7 +112,7 @@ impl Yamlable for String {
             // evaluate as bools or numbers
             Yaml::Real(escaped)
         } else {
-            Yaml::String(self.to_string())
+            Yaml::String(self.clone())
         }
     }
 }
@@ -123,7 +123,7 @@ impl Yamlable for &str {
 }
 impl Yamlable for &String {
     fn as_yaml(&self) -> Yaml {
-        self.to_string().as_yaml()
+        (*self).clone().as_yaml()
     }
 }
 impl Yamlable for i64 {
@@ -151,7 +151,7 @@ where
     T: Yamlable,
 {
     fn as_yaml(&self) -> Yaml {
-        Yaml::Array(self.iter().map(|x| x.as_yaml()).collect())
+        Yaml::Array(self.iter().map(Yamlable::as_yaml).collect())
     }
 }
 impl<T> Yamlable for &Vec<T>
@@ -159,7 +159,7 @@ where
     T: Yamlable,
 {
     fn as_yaml(&self) -> Yaml {
-        Yaml::Array(self.iter().map(|x| x.as_yaml()).collect())
+        Yaml::Array(self.iter().map(Yamlable::as_yaml).collect())
     }
 }
 impl<T> Yamlable for &[T]
@@ -167,7 +167,7 @@ where
     T: Yamlable,
 {
     fn as_yaml(&self) -> Yaml {
-        Yaml::Array(self.iter().map(|x| x.as_yaml()).collect())
+        Yaml::Array(self.iter().map(Yamlable::as_yaml).collect())
     }
 }
 
@@ -203,7 +203,7 @@ where
     K: std::cmp::Eq + std::hash::Hash,
 {
     fn default() -> Self {
-        Self(Default::default())
+        Self(LinkedHashMap::default())
     }
 }
 impl<'a, 'py, K, V> FromPyObject<'a, 'py> for PyMap<K, V>
@@ -233,7 +233,7 @@ where
 {
     fn as_yaml(&self) -> Yaml {
         let mut hash = Hash::new();
-        for (k, v) in self.0.iter() {
+        for (k, v) in &self.0 {
             hash.insert_yaml(k, v);
         }
         Yaml::Hash(hash)
@@ -272,8 +272,7 @@ pub trait MaybeYamlable {
     fn maybe_as_yaml(&self) -> Option<Yaml>;
     fn maybe_as_yaml_string(&self) -> PyResult<String> {
         self.maybe_as_yaml()
-            .map(|y| y.as_yaml_string())
-            .unwrap_or(Ok("".to_string()))
+            .map_or(Ok(String::new()), |y| y.as_yaml_string())
     }
 }
 
@@ -463,7 +462,10 @@ mod yamloom {
 
         use crate::push_escaped_control;
 
-        use super::*;
+        use super::{
+            Bound, Display, Either, Py, PyAny, PyAnyMethods, PyResult, PyValueError, Yaml,
+            Yamlable, pyclass, pyfunction, pymethods,
+        };
 
         type StringLike = Either<StringExpression, String>;
         type BoolLike = Either<BooleanExpression, bool>;
@@ -793,33 +795,33 @@ mod yamloom {
                 ObjectExpression::new_expr(self.to_string(), self.meta())
             }
             fn __invert__(&self) -> Self {
-                Self::new_expr(format!("!({})", self), self.meta())
+                Self::new_expr(format!("!({self})"), self.meta())
             }
             fn __and__(&self, other: BoolLike) -> Self {
                 let (other, other_meta) = render_bool_like(other);
                 Self::new_expr(
-                    format!("({} && {})", self, other),
+                    format!("({self} && {other})"),
                     self.meta().union(other_meta),
                 )
             }
             fn __or__(&self, other: BoolLike) -> Self {
                 let (other, other_meta) = render_bool_like(other);
                 Self::new_expr(
-                    format!("({} || {})", self, other),
+                    format!("({self} || {other})"),
                     self.meta().union(other_meta),
                 )
             }
             fn __eq__(&self, other: BoolLike) -> Self {
                 let (other, other_meta) = render_bool_like(other);
                 Self::new_expr(
-                    format!("({} == {})", self, other),
+                    format!("({self} == {other})"),
                     self.meta().union(other_meta),
                 )
             }
             fn __ne__(&self, other: BoolLike) -> Self {
                 let (other, other_meta) = render_bool_like(other);
                 Self::new_expr(
-                    format!("({} != {})", self, other),
+                    format!("({self} != {other})"),
                     self.meta().union(other_meta),
                 )
             }
@@ -827,13 +829,10 @@ mod yamloom {
                 let (condition, condition_meta) = render_bool_like(condition);
                 let (else_expr, else_meta) = render_bool_like(else_expr);
                 let meta = self.meta().union(condition_meta).union(else_meta);
-                BooleanExpression::new_expr(
-                    format!("({} && {} || {})", condition, self, else_expr),
-                    meta,
-                )
+                BooleanExpression::new_expr(format!("({condition} && {self} || {else_expr})"), meta)
             }
             fn to_json(&self) -> ObjectExpression {
-                ObjectExpression::new_expr(format!("toJSON({})", self), self.meta())
+                ObjectExpression::new_expr(format!("toJSON({self})"), self.meta())
             }
             fn __str__(&self) -> String {
                 self.as_expression_string()
@@ -908,42 +907,42 @@ mod yamloom {
             fn __lt__(&self, other: NumberLike) -> BooleanExpression {
                 let (other, other_meta) = render_number_like(other);
                 BooleanExpression::new_expr(
-                    format!("({} < {})", self, other),
+                    format!("({self} < {other})"),
                     self.meta().union(other_meta),
                 )
             }
             fn __le__(&self, other: NumberLike) -> BooleanExpression {
                 let (other, other_meta) = render_number_like(other);
                 BooleanExpression::new_expr(
-                    format!("({} <= {})", self, other),
+                    format!("({self} <= {other})"),
                     self.meta().union(other_meta),
                 )
             }
             fn __gt__(&self, other: NumberLike) -> BooleanExpression {
                 let (other, other_meta) = render_number_like(other);
                 BooleanExpression::new_expr(
-                    format!("({} > {})", self, other),
+                    format!("({self} > {other})"),
                     self.meta().union(other_meta),
                 )
             }
             fn __ge__(&self, other: NumberLike) -> BooleanExpression {
                 let (other, other_meta) = render_number_like(other);
                 BooleanExpression::new_expr(
-                    format!("({} >= {})", self, other),
+                    format!("({self} >= {other})"),
                     self.meta().union(other_meta),
                 )
             }
             fn __eq__(&self, other: NumberLike) -> BooleanExpression {
                 let (other, other_meta) = render_number_like(other);
                 BooleanExpression::new_expr(
-                    format!("({} == {})", self, other),
+                    format!("({self} == {other})"),
                     self.meta().union(other_meta),
                 )
             }
             fn __ne__(&self, other: NumberLike) -> BooleanExpression {
                 let (other, other_meta) = render_number_like(other);
                 BooleanExpression::new_expr(
-                    format!("({} != {})", self, other),
+                    format!("({self} != {other})"),
                     self.meta().union(other_meta),
                 )
             }
@@ -951,13 +950,10 @@ mod yamloom {
                 let (condition, condition_meta) = render_bool_like(condition);
                 let (else_expr, else_meta) = render_number_like(else_expr);
                 let meta = self.meta().union(condition_meta).union(else_meta);
-                NumberExpression::new_expr(
-                    format!("({} && {} || {})", condition, self, else_expr),
-                    meta,
-                )
+                NumberExpression::new_expr(format!("({condition} && {self} || {else_expr})"), meta)
             }
             fn to_json(&self) -> ObjectExpression {
-                ObjectExpression::new_expr(format!("toJSON({})", self), self.meta())
+                ObjectExpression::new_expr(format!("toJSON({self})"), self.meta())
             }
             fn __str__(&self) -> String {
                 self.as_expression_string()
@@ -1007,35 +1003,35 @@ mod yamloom {
             fn __eq__(&self, other: StringLike) -> BooleanExpression {
                 let (other, other_meta) = render_string_like(other);
                 BooleanExpression::new_expr(
-                    format!("({} == {})", self, other),
+                    format!("({self} == {other})"),
                     self.meta().union(other_meta),
                 )
             }
             fn __ne__(&self, other: StringLike) -> BooleanExpression {
                 let (other, other_meta) = render_string_like(other);
                 BooleanExpression::new_expr(
-                    format!("({} != {})", self, other),
+                    format!("({self} != {other})"),
                     self.meta().union(other_meta),
                 )
             }
             fn contains(&self, other: StringLike) -> BooleanExpression {
                 let (other, other_meta) = render_string_like(other);
                 BooleanExpression::new_expr(
-                    format!("contains({}, {})", self, other),
+                    format!("contains({self}, {other})"),
                     self.meta().union(other_meta),
                 )
             }
             fn startswith(&self, other: StringLike) -> BooleanExpression {
                 let (other, other_meta) = render_string_like(other);
                 BooleanExpression::new_expr(
-                    format!("startsWith({}, {})", self, other),
+                    format!("startsWith({self}, {other})"),
                     self.meta().union(other_meta),
                 )
             }
             fn endswith(&self, other: StringLike) -> BooleanExpression {
                 let (other, other_meta) = render_string_like(other);
                 BooleanExpression::new_expr(
-                    format!("endsWith({}, {})", self, other),
+                    format!("endsWith({self}, {other})"),
                     self.meta().union(other_meta),
                 )
             }
@@ -1050,26 +1046,26 @@ mod yamloom {
                     })
                     .collect::<Vec<String>>()
                     .join(", ");
-                StringExpression::new_expr(format!("format({}, {})", self, args), meta)
+                StringExpression::new_expr(format!("format({self}, {args})"), meta)
             }
             // I don't think we need join for single strings despite the docs
             fn to_json(&self) -> ObjectExpression {
-                ObjectExpression::new_expr(format!("toJSON({})", self), self.meta())
+                ObjectExpression::new_expr(format!("toJSON({self})"), self.meta())
             }
             fn from_json_to_bool(&self) -> BooleanExpression {
-                BooleanExpression::new_expr(format!("fromJSON({})", self), self.meta())
+                BooleanExpression::new_expr(format!("fromJSON({self})"), self.meta())
             }
             fn from_json_to_num(&self) -> NumberExpression {
-                NumberExpression::new_expr(format!("fromJSON({})", self), self.meta())
+                NumberExpression::new_expr(format!("fromJSON({self})"), self.meta())
             }
             fn from_json_to_str(&self) -> Self {
-                Self::new_expr(format!("fromJSON({})", self), self.meta())
+                Self::new_expr(format!("fromJSON({self})"), self.meta())
             }
             fn from_json_to_array(&self) -> ArrayExpression {
-                ArrayExpression::new_expr(format!("fromJSON({})", self), self.meta())
+                ArrayExpression::new_expr(format!("fromJSON({self})"), self.meta())
             }
             fn from_json_to_obj(&self) -> ObjectExpression {
-                ObjectExpression::new_expr(format!("fromJSON({})", self), self.meta())
+                ObjectExpression::new_expr(format!("fromJSON({self})"), self.meta())
             }
             fn hash_files(&self, others: Option<Vec<StringLike>>) -> StringExpression {
                 if let Some(others) = others {
@@ -1083,10 +1079,10 @@ mod yamloom {
                         })
                         .collect::<Vec<String>>()
                         .join(", ");
-                    StringExpression::new_expr(format!("hashFiles({}, {})", self, args), meta)
+                    StringExpression::new_expr(format!("hashFiles({self}, {args})"), meta)
                 } else {
                     StringExpression::new_expr(
-                        format!("hashFiles({})", self),
+                        format!("hashFiles({self})"),
                         self.meta().union(ExprMeta::with_funcs(Funcs::HASH_FILES)),
                     )
                 }
@@ -1095,10 +1091,7 @@ mod yamloom {
                 let (condition, condition_meta) = render_bool_like(condition);
                 let (else_expr, else_meta) = render_string_like(else_expr);
                 let meta = self.meta().union(condition_meta).union(else_meta);
-                StringExpression::new_expr(
-                    format!("({} && {} || {})", condition, self, else_expr),
-                    meta,
-                )
+                StringExpression::new_expr(format!("({condition} && {self} || {else_expr})"), meta)
             }
             fn __str__(&self) -> String {
                 self.as_expression_string()
@@ -1140,7 +1133,7 @@ mod yamloom {
             fn as_obj(&self) -> ObjectExpression {
                 ObjectExpression::new_expr(self.to_string(), self.meta())
             }
-            fn contains(&self, other: ObjectExpression) -> BooleanExpression {
+            fn contains(&self, other: &ObjectExpression) -> BooleanExpression {
                 BooleanExpression::new_expr(
                     format!("contains({}, {})", self, other.stringify()),
                     self.meta().union(other.meta()),
@@ -1150,15 +1143,15 @@ mod yamloom {
                 if let Some(sep) = separator {
                     let (sep, sep_meta) = render_string_like(sep);
                     StringExpression::new_expr(
-                        format!("join({}, {})", self, sep),
+                        format!("join({self}, {sep})"),
                         self.meta().union(sep_meta),
                     )
                 } else {
-                    StringExpression::new_expr(format!("join({})", self), self.meta())
+                    StringExpression::new_expr(format!("join({self})"), self.meta())
                 }
             }
             fn to_json(&self) -> ObjectExpression {
-                ObjectExpression::new_expr(format!("toJSON({})", self), self.meta())
+                ObjectExpression::new_expr(format!("toJSON({self})"), self.meta())
             }
             fn __str__(&self) -> String {
                 self.as_expression_string()
@@ -1237,10 +1230,10 @@ mod yamloom {
             }
             #[classattr]
             const __contains__: Option<Py<PyAny>> = None;
-            fn __getitem__(&self, key: String) -> ObjectExpression {
-                ObjectExpression::new_expr(Self::format_access(self.stringify(), &key), self.meta())
+            fn __getitem__(&self, key: &str) -> ObjectExpression {
+                ObjectExpression::new_expr(Self::format_access(self.stringify(), key), self.meta())
             }
-            fn __getattr__(&self, key: String) -> ObjectExpression {
+            fn __getattr__(&self, key: &str) -> ObjectExpression {
                 self.__getitem__(key)
             }
             fn __str__(&self) -> String {
@@ -1529,13 +1522,13 @@ mod yamloom {
             }
             #[classattr]
             const __contains__: Option<Py<PyAny>> = None;
-            fn __getitem__(&self, key: String) -> StringExpression {
+            fn __getitem__(&self, key: &str) -> StringExpression {
                 StringExpression::from_base(ExprBase::with_contexts(
-                    ObjectExpression::format_access("env", &key),
+                    ObjectExpression::format_access("env", key),
                     Contexts::ENV,
                 ))
             }
-            fn __getattr__(&self, key: String) -> StringExpression {
+            fn __getattr__(&self, key: &str) -> StringExpression {
                 self.__getitem__(key)
             }
         }
@@ -1550,13 +1543,13 @@ mod yamloom {
             }
             #[classattr]
             const __contains__: Option<Py<PyAny>> = None;
-            fn __getitem__(&self, key: String) -> StringExpression {
+            fn __getitem__(&self, key: &str) -> StringExpression {
                 StringExpression::from_base(ExprBase::with_contexts(
-                    ObjectExpression::format_access("vars", &key),
+                    ObjectExpression::format_access("vars", key),
                     Contexts::VARS,
                 ))
             }
-            fn __getattr__(&self, key: String) -> StringExpression {
+            fn __getattr__(&self, key: &str) -> StringExpression {
                 self.__getitem__(key)
             }
         }
@@ -1626,10 +1619,10 @@ mod yamloom {
             }
             #[classattr]
             const __contains__: Option<Py<PyAny>> = None;
-            fn __getitem__(&self, key: String) -> JobServicesIdContext {
-                JobServicesIdContext(ObjectExpression::format_access("job.services", &key))
+            fn __getitem__(&self, key: &str) -> JobServicesIdContext {
+                JobServicesIdContext(ObjectExpression::format_access("job.services", key))
             }
-            fn __getattr__(&self, key: String) -> JobServicesIdContext {
+            fn __getattr__(&self, key: &str) -> JobServicesIdContext {
                 self.__getitem__(key)
             }
         }
@@ -1673,13 +1666,13 @@ mod yamloom {
             }
             #[classattr]
             const __contains__: Option<Py<PyAny>> = None;
-            fn __getitem__(&self, key: String) -> StringExpression {
+            fn __getitem__(&self, key: &str) -> StringExpression {
                 StringExpression::from_base(ExprBase::with_contexts(
-                    ObjectExpression::format_access(&self.0, &key),
+                    ObjectExpression::format_access(&self.0, key),
                     Contexts::JOBS,
                 ))
             }
-            fn __getattr__(&self, key: String) -> StringExpression {
+            fn __getattr__(&self, key: &str) -> StringExpression {
                 self.__getitem__(key)
             }
         }
@@ -1715,10 +1708,10 @@ mod yamloom {
             }
             #[classattr]
             const __contains__: Option<Py<PyAny>> = None;
-            fn __getitem__(&self, key: String) -> JobsJobIdContext {
-                JobsJobIdContext(ObjectExpression::format_access("jobs", &key))
+            fn __getitem__(&self, key: &str) -> JobsJobIdContext {
+                JobsJobIdContext(ObjectExpression::format_access("jobs", key))
             }
-            fn __getattr__(&self, key: String) -> JobsJobIdContext {
+            fn __getattr__(&self, key: &str) -> JobsJobIdContext {
                 self.__getitem__(key)
             }
         }
@@ -1736,13 +1729,13 @@ mod yamloom {
             }
             #[classattr]
             const __contains__: Option<Py<PyAny>> = None;
-            fn __getitem__(&self, key: String) -> StringExpression {
+            fn __getitem__(&self, key: &str) -> StringExpression {
                 StringExpression::from_base(ExprBase::with_contexts(
-                    ObjectExpression::format_access(&self.0, &key),
+                    ObjectExpression::format_access(&self.0, key),
                     Contexts::STEPS,
                 ))
             }
-            fn __getattr__(&self, key: String) -> StringExpression {
+            fn __getattr__(&self, key: &str) -> StringExpression {
                 self.__getitem__(key)
             }
         }
@@ -1788,10 +1781,10 @@ mod yamloom {
             }
             #[classattr]
             const __contains__: Option<Py<PyAny>> = None;
-            fn __getitem__(&self, key: String) -> StepsStepIdContext {
-                StepsStepIdContext(ObjectExpression::format_access("steps", &key))
+            fn __getitem__(&self, key: &str) -> StepsStepIdContext {
+                StepsStepIdContext(ObjectExpression::format_access("steps", key))
             }
-            fn __getattr__(&self, key: String) -> StepsStepIdContext {
+            fn __getattr__(&self, key: &str) -> StepsStepIdContext {
                 self.__getitem__(key)
             }
         }
@@ -1869,13 +1862,13 @@ mod yamloom {
             }
             #[classattr]
             const __contains__: Option<Py<PyAny>> = None;
-            fn __getitem__(&self, key: String) -> StringExpression {
+            fn __getitem__(&self, key: &str) -> StringExpression {
                 StringExpression::from_base(ExprBase::with_contexts(
-                    ObjectExpression::format_access("secrets", &key),
+                    ObjectExpression::format_access("secrets", key),
                     Contexts::SECRETS,
                 ))
             }
-            fn __getattr__(&self, key: String) -> StringExpression {
+            fn __getattr__(&self, key: &str) -> StringExpression {
                 self.__getitem__(key)
             }
         }
@@ -1928,13 +1921,13 @@ mod yamloom {
             }
             #[classattr]
             const __contains__: Option<Py<PyAny>> = None;
-            fn __getitem__(&self, key: String) -> ObjectExpression {
+            fn __getitem__(&self, key: &str) -> ObjectExpression {
                 ObjectExpression::from_base(ExprBase::with_contexts(
-                    ObjectExpression::format_access("matrix", &key),
+                    ObjectExpression::format_access("matrix", key),
                     Contexts::MATRIX,
                 ))
             }
-            fn __getattr__(&self, key: String) -> ObjectExpression {
+            fn __getattr__(&self, key: &str) -> ObjectExpression {
                 self.__getitem__(key)
             }
         }
@@ -1952,13 +1945,13 @@ mod yamloom {
             }
             #[classattr]
             const __contains__: Option<Py<PyAny>> = None;
-            fn __getitem__(&self, key: String) -> StringExpression {
+            fn __getitem__(&self, key: &str) -> StringExpression {
                 StringExpression::from_base(ExprBase::with_contexts(
-                    ObjectExpression::format_access(&self.0, &key),
+                    ObjectExpression::format_access(&self.0, key),
                     Contexts::NEEDS,
                 ))
             }
-            fn __getattr__(&self, key: String) -> StringExpression {
+            fn __getattr__(&self, key: &str) -> StringExpression {
                 self.__getitem__(key)
             }
         }
@@ -1997,10 +1990,10 @@ mod yamloom {
             }
             #[classattr]
             const __contains__: Option<Py<PyAny>> = None;
-            fn __getitem__(&self, key: String) -> NeedsJobIdContext {
-                NeedsJobIdContext(ObjectExpression::format_access("needs", &key))
+            fn __getitem__(&self, key: &str) -> NeedsJobIdContext {
+                NeedsJobIdContext(ObjectExpression::format_access("needs", key))
             }
-            fn __getattr__(&self, key: String) -> NeedsJobIdContext {
+            fn __getattr__(&self, key: &str) -> NeedsJobIdContext {
                 self.__getitem__(key)
             }
         }
@@ -2015,13 +2008,13 @@ mod yamloom {
             }
             #[classattr]
             const __contains__: Option<Py<PyAny>> = None;
-            fn __getitem__(&self, key: String) -> ObjectExpression {
+            fn __getitem__(&self, key: &str) -> ObjectExpression {
                 ObjectExpression::from_base(ExprBase::with_contexts(
-                    ObjectExpression::format_access("inputs", &key),
+                    ObjectExpression::format_access("inputs", key),
                     Contexts::INPUTS,
                 ))
             }
-            fn __getattr__(&self, key: String) -> ObjectExpression {
+            fn __getattr__(&self, key: &str) -> ObjectExpression {
                 self.__getitem__(key)
             }
         }
@@ -2083,8 +2076,8 @@ mod yamloom {
         }
 
         #[pyfunction]
-        fn lit_str(s: String) -> StringExpression {
-            StringExpression::new_expr(escape_string(&s), ExprMeta::empty())
+        fn lit_str(s: &str) -> StringExpression {
+            StringExpression::new_expr(escape_string(s), ExprMeta::empty())
         }
 
         #[pyfunction]
@@ -2100,7 +2093,7 @@ mod yamloom {
         }
 
         #[pyfunction]
-        fn lit_num(n: Bound<PyAny>) -> PyResult<NumberExpression> {
+        fn lit_num(n: &Bound<PyAny>) -> PyResult<NumberExpression> {
             if n.is_instance_of::<PyFloat>() {
                 Ok(NumberExpression::new_expr(
                     n.extract::<f64>()?.to_string(),
@@ -2409,12 +2402,12 @@ mod yamloom {
     }
 
     fn validate_step_options(
-        name: &Option<StringLike>,
-        condition: &Option<Either<BooleanExpression, String>>,
-        working_directory: &Option<StringLike>,
-        env: &Option<PyMap<String, StringLike>>,
-        continue_on_error: &Option<BoolLike>,
-        timeout_minutes: &Option<IntLike>,
+        name: Option<&StringLike>,
+        condition: Option<&Either<BooleanExpression, String>>,
+        working_directory: Option<&StringLike>,
+        env: Option<&PyMap<String, StringLike>>,
+        continue_on_error: Option<&BoolLike>,
+        timeout_minutes: Option<&IntLike>,
     ) -> PyResult<()> {
         if let Some(name) = name {
             validate_string_like(name, ALLOWED_STEP_NAME)?;
@@ -2531,7 +2524,7 @@ mod yamloom {
             let mut dict_internals = Hash::new();
             for (key, entry) in self.iter() {
                 if let Ok(key) = key.extract::<String>() {
-                    dict_internals.insert_yaml(key, entry.try_as_yaml()?)
+                    dict_internals.insert_yaml(key, entry.try_as_yaml()?);
                 } else {
                     return Err(PyValueError::new_err("Invalid key"));
                 }
@@ -2544,7 +2537,7 @@ mod yamloom {
         fn try_as_array(&self) -> PyResult<Vec<Yaml>> {
             let mut list_internals = Vec::new();
             for entry in self.iter() {
-                list_internals.push(entry.try_as_yaml()?)
+                list_internals.push(entry.try_as_yaml()?);
             }
             Ok(list_internals)
         }
@@ -2578,7 +2571,7 @@ mod yamloom {
         fn uses(&self) -> Option<String> {
             match self {
                 StepAction::Run(_) => None,
-                StepAction::Action { uses, .. } => Some(uses.to_string()),
+                StepAction::Action { uses, .. } => Some(uses.clone()),
             }
         }
         fn with(&self) -> Option<WithArgs> {
@@ -2595,12 +2588,13 @@ mod yamloom {
         }
     }
 
-    #[pyclass]
+    #[pyclass(subclass)]
     #[derive(Clone)]
     struct Step {
         name: Option<StringLike>,
         step_action: StepAction,
         options: StepOptions,
+        recommended_permissions: Option<Permissions>,
     }
 
     #[derive(Clone)]
@@ -2695,12 +2689,12 @@ mod yamloom {
             validate_string_like(line, ALLOWED_STEP_RUN)?;
         }
         validate_step_options(
-            &name,
-            &condition,
-            &working_directory,
-            &env,
-            &continue_on_error,
-            &timeout_minutes,
+            name.as_ref(),
+            condition.as_ref(),
+            working_directory.as_ref(),
+            env.as_ref(),
+            continue_on_error.as_ref(),
+            timeout_minutes.as_ref(),
         )?;
         let script = collect_script_lines(script);
         Ok(Step {
@@ -2715,11 +2709,12 @@ mod yamloom {
                 continue_on_error,
                 timeout_minutes,
             },
+            recommended_permissions: None,
         })
     }
     fn make_action(
         name: Option<StringLike>,
-        action: String,
+        action: &str,
         r#ref: Option<String>,
         with_opts: Option<Hash>,
         args: Option<StringLike>,
@@ -2729,14 +2724,15 @@ mod yamloom {
         env: Option<PyMap<String, StringLike>>,
         continue_on_error: Option<BoolLike>,
         timeout_minutes: Option<IntLike>,
+        recommended_permissions: Option<Permissions>,
     ) -> PyResult<Step> {
         validate_step_options(
-            &name,
-            &condition,
-            &None,
-            &env,
-            &continue_on_error,
-            &timeout_minutes,
+            name.as_ref(),
+            condition.as_ref(),
+            None,
+            env.as_ref(),
+            continue_on_error.as_ref(),
+            timeout_minutes.as_ref(),
         )?;
         if let Some(args) = &args {
             validate_string_like(args, ALLOWED_STEP_WITH)?;
@@ -2759,7 +2755,7 @@ mod yamloom {
                 uses: format!(
                     "{}{}",
                     action,
-                    r#ref.map(|s| format!("@{}", s)).unwrap_or_default()
+                    r#ref.map(|s| format!("@{s}")).unwrap_or_default()
                 ),
                 with: with_args,
             },
@@ -2772,6 +2768,7 @@ mod yamloom {
                 continue_on_error,
                 timeout_minutes,
             },
+            recommended_permissions,
         })
     }
 
@@ -2805,12 +2802,14 @@ mod yamloom {
     ///     Prevents the job from failing if this step fails.
     /// timeout_minutes
     ///     The maximum number of minutes to let the step run before GitHub automatically cancels it (defaults to 360 if not specified).
+    /// recommended_permissions
+    ///     Recommended permissions required to run this action.
     ///
     #[pyfunction]
-    #[pyo3(signature = (name, action, *, r#ref = None, with_opts = None, args = None, entrypoint = None, condition = None, id = None, env = None, continue_on_error = None, timeout_minutes = None))]
+    #[pyo3(signature = (name, action, *, r#ref = None, with_opts = None, args = None, entrypoint = None, condition = None, id = None, env = None, continue_on_error = None, timeout_minutes = None, recommended_permissions = None))]
     fn action(
         name: Option<StringLike>,
-        action: String,
+        action: &str,
         r#ref: Option<String>,
         with_opts: Option<Bound<PyDict>>,
         args: Option<StringLike>,
@@ -2820,6 +2819,7 @@ mod yamloom {
         env: Option<PyMap<String, StringLike>>,
         continue_on_error: Option<BoolLike>,
         timeout_minutes: Option<IntLike>,
+        recommended_permissions: Option<Permissions>,
     ) -> PyResult<Step> {
         if let Some(with_opts) = &with_opts {
             validate_with_opts(with_opts, ALLOWED_STEP_WITH)?;
@@ -2836,7 +2836,49 @@ mod yamloom {
             env,
             continue_on_error,
             timeout_minutes,
+            recommended_permissions,
         )
+    }
+
+    #[pyclass(extends=Step, subclass)]
+    struct ActionStep;
+    #[pymethods]
+    impl ActionStep {
+        #[new]
+        #[pyo3(signature = (name, action, *, r#ref = None, with_opts = None, args = None, entrypoint = None, condition = None, id = None, env = None, continue_on_error = None, timeout_minutes = None, recommended_permissions = None))]
+        fn new(
+            name: Option<StringLike>,
+            action: &str,
+            r#ref: Option<String>,
+            with_opts: Option<Bound<PyDict>>,
+            args: Option<StringLike>,
+            entrypoint: Option<StringLike>,
+            condition: Option<Either<BooleanExpression, String>>,
+            id: Option<String>,
+            env: Option<PyMap<String, StringLike>>,
+            continue_on_error: Option<BoolLike>,
+            timeout_minutes: Option<IntLike>,
+            recommended_permissions: Option<Permissions>,
+        ) -> PyResult<(Self, Step)> {
+            if let Some(with_opts) = &with_opts {
+                validate_with_opts(with_opts, ALLOWED_STEP_WITH)?;
+            }
+            let step = make_action(
+                name,
+                action,
+                r#ref,
+                with_opts.map(|d| d.try_as_hash()).transpose()?,
+                args,
+                entrypoint,
+                condition,
+                id,
+                env,
+                continue_on_error,
+                timeout_minutes,
+                recommended_permissions,
+            )?;
+            Ok((ActionStep, step))
+        }
     }
 
     #[derive(Clone, Copy)]
@@ -2932,6 +2974,25 @@ mod yamloom {
         pull_requests: Option<ReadWriteNonePermission>,
         security_events: Option<ReadWriteNonePermission>,
         statuses: Option<ReadWriteNonePermission>,
+    }
+    impl IndividualPermissions {
+        fn is_empty(&self) -> bool {
+            self.actions.is_none()
+                && self.artifact_metadata.is_none()
+                && self.attestations.is_none()
+                && self.checks.is_none()
+                && self.contents.is_none()
+                && self.deployments.is_none()
+                && self.id_token.is_none()
+                && self.issues.is_none()
+                && self.models.is_none()
+                && self.discussions.is_none()
+                && self.packages.is_none()
+                && self.pages.is_none()
+                && self.pull_requests.is_none()
+                && self.security_events.is_none()
+                && self.statuses.is_none()
+        }
     }
     #[derive(Clone)]
     enum PermissionsOptions {
@@ -3035,6 +3096,177 @@ mod yamloom {
                 PermissionsOptions::WriteAll => "write-all".as_yaml(),
                 PermissionsOptions::None => Yaml::Hash(Hash::new()), // TODO: test
             }
+        }
+    }
+
+    fn max_read_write_none(
+        left: ReadWriteNonePermission,
+        right: ReadWriteNonePermission,
+    ) -> ReadWriteNonePermission {
+        match (left, right) {
+            (ReadWriteNonePermission::Write, _) | (_, ReadWriteNonePermission::Write) => {
+                ReadWriteNonePermission::Write
+            }
+            (ReadWriteNonePermission::Read, _) | (_, ReadWriteNonePermission::Read) => {
+                ReadWriteNonePermission::Read
+            }
+            _ => ReadWriteNonePermission::None,
+        }
+    }
+    fn max_write_none(
+        left: WriteNonePermission,
+        right: WriteNonePermission,
+    ) -> WriteNonePermission {
+        match (left, right) {
+            (WriteNonePermission::Write, _) | (_, WriteNonePermission::Write) => {
+                WriteNonePermission::Write
+            }
+            _ => WriteNonePermission::None,
+        }
+    }
+    fn max_read_none(left: ReadNonePermission, right: ReadNonePermission) -> ReadNonePermission {
+        match (left, right) {
+            (ReadNonePermission::Read, _) | (_, ReadNonePermission::Read) => {
+                ReadNonePermission::Read
+            }
+            _ => ReadNonePermission::None,
+        }
+    }
+    fn merge_rw_opt(
+        left: Option<ReadWriteNonePermission>,
+        right: Option<ReadWriteNonePermission>,
+    ) -> Option<ReadWriteNonePermission> {
+        match (left, right) {
+            (None, None) => None,
+            (Some(value), None) | (None, Some(value)) => Some(value),
+            (Some(left), Some(right)) => Some(max_read_write_none(left, right)),
+        }
+    }
+    fn merge_write_opt(
+        left: Option<WriteNonePermission>,
+        right: Option<WriteNonePermission>,
+    ) -> Option<WriteNonePermission> {
+        match (left, right) {
+            (None, None) => None,
+            (Some(value), None) | (None, Some(value)) => Some(value),
+            (Some(left), Some(right)) => Some(max_write_none(left, right)),
+        }
+    }
+    fn merge_read_opt(
+        left: Option<ReadNonePermission>,
+        right: Option<ReadNonePermission>,
+    ) -> Option<ReadNonePermission> {
+        match (left, right) {
+            (None, None) => None,
+            (Some(value), None) | (None, Some(value)) => Some(value),
+            (Some(left), Some(right)) => Some(max_read_none(left, right)),
+        }
+    }
+    fn merge_individual(
+        left: &IndividualPermissions,
+        right: &IndividualPermissions,
+    ) -> IndividualPermissions {
+        IndividualPermissions {
+            actions: merge_rw_opt(left.actions, right.actions),
+            artifact_metadata: merge_rw_opt(left.artifact_metadata, right.artifact_metadata),
+            attestations: merge_rw_opt(left.attestations, right.attestations),
+            checks: merge_rw_opt(left.checks, right.checks),
+            contents: merge_rw_opt(left.contents, right.contents),
+            deployments: merge_rw_opt(left.deployments, right.deployments),
+            id_token: merge_write_opt(left.id_token, right.id_token),
+            issues: merge_rw_opt(left.issues, right.issues),
+            models: merge_read_opt(left.models, right.models),
+            discussions: merge_rw_opt(left.discussions, right.discussions),
+            packages: merge_rw_opt(left.packages, right.packages),
+            pages: merge_rw_opt(left.pages, right.pages),
+            pull_requests: merge_rw_opt(left.pull_requests, right.pull_requests),
+            security_events: merge_rw_opt(left.security_events, right.security_events),
+            statuses: merge_rw_opt(left.statuses, right.statuses),
+        }
+    }
+    fn individual_from_permissions(permissions: &Permissions) -> IndividualPermissions {
+        match &permissions.options {
+            PermissionsOptions::Individual(indiv) => indiv.clone(),
+            PermissionsOptions::None => IndividualPermissions {
+                actions: None,
+                artifact_metadata: None,
+                attestations: None,
+                checks: None,
+                contents: None,
+                deployments: None,
+                id_token: None,
+                issues: None,
+                models: None,
+                discussions: None,
+                packages: None,
+                pages: None,
+                pull_requests: None,
+                security_events: None,
+                statuses: None,
+            },
+            PermissionsOptions::ReadAll => IndividualPermissions {
+                actions: Some(ReadWriteNonePermission::Read),
+                artifact_metadata: Some(ReadWriteNonePermission::Read),
+                attestations: Some(ReadWriteNonePermission::Read),
+                checks: Some(ReadWriteNonePermission::Read),
+                contents: Some(ReadWriteNonePermission::Read),
+                deployments: Some(ReadWriteNonePermission::Read),
+                id_token: Some(WriteNonePermission::None),
+                issues: Some(ReadWriteNonePermission::Read),
+                models: Some(ReadNonePermission::Read),
+                discussions: Some(ReadWriteNonePermission::Read),
+                packages: Some(ReadWriteNonePermission::Read),
+                pages: Some(ReadWriteNonePermission::Read),
+                pull_requests: Some(ReadWriteNonePermission::Read),
+                security_events: Some(ReadWriteNonePermission::Read),
+                statuses: Some(ReadWriteNonePermission::Read),
+            },
+            PermissionsOptions::WriteAll => IndividualPermissions {
+                actions: Some(ReadWriteNonePermission::Write),
+                artifact_metadata: Some(ReadWriteNonePermission::Write),
+                attestations: Some(ReadWriteNonePermission::Write),
+                checks: Some(ReadWriteNonePermission::Write),
+                contents: Some(ReadWriteNonePermission::Write),
+                deployments: Some(ReadWriteNonePermission::Write),
+                id_token: Some(WriteNonePermission::Write),
+                issues: Some(ReadWriteNonePermission::Write),
+                models: Some(ReadNonePermission::Read),
+                discussions: Some(ReadWriteNonePermission::Write),
+                packages: Some(ReadWriteNonePermission::Write),
+                pages: Some(ReadWriteNonePermission::Write),
+                pull_requests: Some(ReadWriteNonePermission::Write),
+                security_events: Some(ReadWriteNonePermission::Write),
+                statuses: Some(ReadWriteNonePermission::Write),
+            },
+        }
+    }
+    fn merge_permissions(left: &Permissions, right: &Permissions) -> Permissions {
+        match (&left.options, &right.options) {
+            (PermissionsOptions::WriteAll, _) | (_, PermissionsOptions::WriteAll) => Permissions {
+                options: PermissionsOptions::WriteAll,
+            },
+            (PermissionsOptions::None, PermissionsOptions::None) => Permissions {
+                options: PermissionsOptions::None,
+            },
+            (
+                PermissionsOptions::ReadAll,
+                PermissionsOptions::None | PermissionsOptions::ReadAll,
+            )
+            | (PermissionsOptions::None, PermissionsOptions::ReadAll) => Permissions {
+                options: PermissionsOptions::ReadAll,
+            },
+            _ => Permissions {
+                options: PermissionsOptions::Individual(merge_individual(
+                    &individual_from_permissions(left),
+                    &individual_from_permissions(right),
+                )),
+            },
+        }
+    }
+    fn is_empty_individual_permissions(permissions: &Permissions) -> bool {
+        match &permissions.options {
+            PermissionsOptions::Individual(indiv) => indiv.is_empty(),
+            _ => false,
         }
     }
 
@@ -3265,7 +3497,7 @@ mod yamloom {
                     .map(|m| {
                         let mut hash = Hash::new();
                         for (k, v) in m.iter() {
-                            hash.insert_yaml(k.try_as_yaml()?, v.try_as_yaml()?)
+                            hash.insert_yaml(k.try_as_yaml()?, v.try_as_yaml()?);
                         }
                         Ok::<Hash, PyErr>(hash)
                     })
@@ -3274,7 +3506,7 @@ mod yamloom {
                     .map(|i| {
                         let mut arr = Array::new();
                         for v in i.iter() {
-                            arr.push_yaml(v.try_as_yaml()?)
+                            arr.push_yaml(v.try_as_yaml()?);
                         }
                         Ok::<Array, PyErr>(arr)
                     })
@@ -3283,7 +3515,7 @@ mod yamloom {
                     .map(|e| {
                         let mut arr = Array::new();
                         for v in e.iter() {
-                            arr.push_yaml(v.try_as_yaml()?)
+                            arr.push_yaml(v.try_as_yaml()?);
                         }
                         Ok::<Array, PyErr>(arr)
                     })
@@ -3451,7 +3683,7 @@ mod yamloom {
             match &self.options {
                 JobSecretsOptions::Secrets(s) => {
                     let mut hash = Hash::new();
-                    for (k, v) in s.iter() {
+                    for (k, v) in s {
                         hash.insert_yaml(k, v);
                     }
                     Yaml::Hash(hash)
@@ -3502,6 +3734,8 @@ mod yamloom {
         ///     The name of the job displayed in the GitHub UI.
         /// permissions
         ///     The permissions granted to the ``GITHUB_TOKEN`` for this job.
+        /// use_recommended_permissions
+        ///     Merge recommended permissions from steps into this job's permissions.
         /// needs
         ///     A list of `Job`s which must complete successfully before this job will run.
         /// condition
@@ -3539,11 +3773,12 @@ mod yamloom {
         /// secrets
         ///     A map of secrets passed to a resulable workflow job specified by ``uses``.
         #[new]
-        #[pyo3(signature = (*, steps=None, name=None, permissions=None, needs=None, condition=None, runs_on=None, snapshot=None, environment=None, concurrency=None, outputs=None, env=None, defaults=None, timeout_minutes=None, strategy=None, continue_on_error=None, container=None, services=None, uses=None, with_opts=None, secrets=None))]
+        #[pyo3(signature = (*, steps=None, name=None, permissions=None, use_recommended_permissions=true, needs=None, condition=None, runs_on=None, snapshot=None, environment=None, concurrency=None, outputs=None, env=None, defaults=None, timeout_minutes=None, strategy=None, continue_on_error=None, container=None, services=None, uses=None, with_opts=None, secrets=None))]
         fn new(
             steps: Option<Vec<Step>>,
             name: Option<StringLike>,
             permissions: Option<Permissions>,
+            use_recommended_permissions: bool,
             needs: Option<Vec<String>>,
             condition: Option<Either<BooleanExpression, String>>,
             runs_on: Option<RunsOn>,
@@ -3659,8 +3894,32 @@ mod yamloom {
             if let Some(secrets) = &secrets
                 && let JobSecretsOptions::Secrets(values) = &secrets.options
             {
-                for (_, value) in values.iter() {
+                for value in values.values() {
                     validate_string_like(value, ALLOWED_JOB_SECRETS)?;
+                }
+            }
+            let mut permissions = permissions;
+            if use_recommended_permissions && let Some(steps) = &steps {
+                let mut saw_recommendation = false;
+                let mut merged: Option<Permissions> = None;
+                for step in steps {
+                    if let Some(step_permissions) = &step.recommended_permissions {
+                        saw_recommendation = true;
+                        merged = Some(match &merged {
+                            Some(current) => merge_permissions(current, step_permissions),
+                            None => step_permissions.clone(),
+                        });
+                    }
+                }
+                if saw_recommendation {
+                    let mut merged = merged.unwrap_or_else(Permissions::none);
+                    if is_empty_individual_permissions(&merged) {
+                        merged = Permissions::none();
+                    }
+                    permissions = Some(match permissions {
+                        Some(current) => merge_permissions(&current, &merged),
+                        None => merged,
+                    });
                 }
             }
             Ok(Self {
@@ -4339,10 +4598,6 @@ mod yamloom {
             let paths = paths.filter(|v| !v.is_empty());
             let paths_ignore = paths_ignore.filter(|v| !v.is_empty());
             Self {
-                branches,
-                branches_ignore,
-                paths,
-                paths_ignore,
                 assigned,
                 unassigned,
                 labeled,
@@ -4364,6 +4619,10 @@ mod yamloom {
                 review_request_removed,
                 auto_merge_enabled,
                 auto_merge_disabled,
+                branches,
+                branches_ignore,
+                paths,
+                paths_ignore,
             }
         }
 
@@ -4708,7 +4967,7 @@ mod yamloom {
                     Self::Value(v) => v.to_string(),
                     Self::List(items) => items
                         .iter()
-                        .map(|i| i.to_string())
+                        .map(std::string::ToString::to_string)
                         .collect::<Vec<String>>()
                         .join(","),
 
@@ -4817,7 +5076,7 @@ mod yamloom {
     #[pymethods]
     impl Minute {
         #[new]
-        fn new(minute: Bound<PyAny>) -> PyResult<Self> {
+        fn new(minute: &Bound<PyAny>) -> PyResult<Self> {
             if let Ok(l) = minute.extract::<Bound<PyList>>() {
                 let mut res = Vec::new();
                 for item in l.iter() {
@@ -4830,14 +5089,14 @@ mod yamloom {
             Ok(Self(CronStepType::Value(minute.0)))
         }
         #[staticmethod]
-        fn between(start: Bound<PyAny>, end: Bound<PyAny>) -> PyResult<Self> {
+        fn between(start: &Bound<PyAny>, end: &Bound<PyAny>) -> PyResult<Self> {
             let min = start.extract::<CronMinute>()?;
             let max = end.extract::<CronMinute>()?;
             Ok(Self(CronStepType::Range(min.0, max.0)))
         }
         #[staticmethod]
         #[pyo3(signature = (interval, *, start = None))]
-        fn every(interval: Bound<PyAny>, start: Option<Bound<PyAny>>) -> PyResult<Self> {
+        fn every(interval: &Bound<PyAny>, start: Option<Bound<PyAny>>) -> PyResult<Self> {
             let start = start
                 .map(|a| a.extract::<CronMinute>())
                 .transpose()?
@@ -4861,7 +5120,7 @@ mod yamloom {
     #[pymethods]
     impl Hour {
         #[new]
-        fn new(hour: Bound<PyAny>) -> PyResult<Self> {
+        fn new(hour: &Bound<PyAny>) -> PyResult<Self> {
             if let Ok(l) = hour.extract::<Bound<PyList>>() {
                 let mut res = Vec::new();
                 for item in l.iter() {
@@ -4874,14 +5133,14 @@ mod yamloom {
             Ok(Self(CronStepType::Value(hour.0)))
         }
         #[staticmethod]
-        fn between(start: Bound<PyAny>, end: Bound<PyAny>) -> PyResult<Self> {
+        fn between(start: &Bound<PyAny>, end: &Bound<PyAny>) -> PyResult<Self> {
             let min = start.extract::<CronHour>()?;
             let max = end.extract::<CronHour>()?;
             Ok(Self(CronStepType::Range(min.0, max.0)))
         }
         #[staticmethod]
         #[pyo3(signature = (interval, *, start = None))]
-        fn every(interval: Bound<PyAny>, start: Option<Bound<PyAny>>) -> PyResult<Self> {
+        fn every(interval: &Bound<PyAny>, start: Option<Bound<PyAny>>) -> PyResult<Self> {
             let start = start
                 .map(|a| a.extract::<CronHour>())
                 .transpose()?
@@ -4905,7 +5164,7 @@ mod yamloom {
     #[pymethods]
     impl Day {
         #[new]
-        fn new(day: Bound<PyAny>) -> PyResult<Self> {
+        fn new(day: &Bound<PyAny>) -> PyResult<Self> {
             if let Ok(l) = day.extract::<Bound<PyList>>() {
                 let mut res = Vec::new();
                 for item in l.iter() {
@@ -4918,14 +5177,14 @@ mod yamloom {
             Ok(Self(CronStepType::Value(day.0)))
         }
         #[staticmethod]
-        fn between(min: Bound<PyAny>, max: Bound<PyAny>) -> PyResult<Self> {
+        fn between(min: &Bound<PyAny>, max: &Bound<PyAny>) -> PyResult<Self> {
             let min = min.extract::<CronDay>()?;
             let max = max.extract::<CronDay>()?;
             Ok(Self(CronStepType::Range(min.0, max.0)))
         }
         #[staticmethod]
         #[pyo3(signature = (interval, *, start = None))]
-        fn every(interval: Bound<PyAny>, start: Option<Bound<PyAny>>) -> PyResult<Self> {
+        fn every(interval: &Bound<PyAny>, start: Option<Bound<PyAny>>) -> PyResult<Self> {
             let start = start
                 .map(|a| a.extract::<CronDay>())
                 .transpose()?
@@ -4949,7 +5208,7 @@ mod yamloom {
     #[pymethods]
     impl Month {
         #[new]
-        fn new(month: Bound<PyAny>) -> PyResult<Self> {
+        fn new(month: &Bound<PyAny>) -> PyResult<Self> {
             if let Ok(l) = month.extract::<Bound<PyList>>() {
                 let mut res = Vec::new();
                 for item in l.iter() {
@@ -4962,14 +5221,14 @@ mod yamloom {
             Ok(Self(CronStepType::Value(month.0)))
         }
         #[staticmethod]
-        fn between(min: Bound<PyAny>, max: Bound<PyAny>) -> PyResult<Self> {
+        fn between(min: &Bound<PyAny>, max: &Bound<PyAny>) -> PyResult<Self> {
             let min = min.extract::<CronMonth>()?;
             let max = max.extract::<CronMonth>()?;
             Ok(Self(CronStepType::Range(min.0, max.0)))
         }
         #[staticmethod]
         #[pyo3(signature = (interval, *, start = None))]
-        fn every(interval: Bound<PyAny>, start: Option<Bound<PyAny>>) -> PyResult<Self> {
+        fn every(interval: &Bound<PyAny>, start: Option<Bound<PyAny>>) -> PyResult<Self> {
             let start = start
                 .map(|a| a.extract::<CronMonth>())
                 .transpose()?
@@ -4993,7 +5252,7 @@ mod yamloom {
     #[pymethods]
     impl DayOfWeek {
         #[new]
-        fn new(day_of_week: Bound<PyAny>) -> PyResult<Self> {
+        fn new(day_of_week: &Bound<PyAny>) -> PyResult<Self> {
             if let Ok(l) = day_of_week.extract::<Bound<PyList>>() {
                 let mut res = Vec::new();
                 for item in l.iter() {
@@ -5006,14 +5265,14 @@ mod yamloom {
             Ok(Self(CronStepType::Value(day_of_week.0)))
         }
         #[staticmethod]
-        fn between(min: Bound<PyAny>, max: Bound<PyAny>) -> PyResult<Self> {
+        fn between(min: &Bound<PyAny>, max: &Bound<PyAny>) -> PyResult<Self> {
             let min = min.extract::<CronDayOfWeek>()?;
             let max = max.extract::<CronDayOfWeek>()?;
             Ok(Self(CronStepType::Range(min.0, max.0)))
         }
         #[staticmethod]
         #[pyo3(signature = (interval, *, start = None))]
-        fn every(interval: Bound<PyAny>, start: Option<Bound<PyAny>>) -> PyResult<Self> {
+        fn every(interval: &Bound<PyAny>, start: Option<Bound<PyAny>>) -> PyResult<Self> {
             let start = start
                 .map(|a| a.extract::<CronDayOfWeek>())
                 .transpose()?
@@ -5066,24 +5325,15 @@ mod yamloom {
                 "{} {} {} {} {}",
                 self.minute
                     .clone()
-                    .map(|s| s.to_string())
-                    .unwrap_or("*".to_string()),
-                self.hour
-                    .clone()
-                    .map(|s| s.to_string())
-                    .unwrap_or("*".to_string()),
-                self.day
-                    .clone()
-                    .map(|s| s.to_string())
-                    .unwrap_or("*".to_string()),
+                    .map_or("*".to_string(), |s| s.to_string()),
+                self.hour.clone().map_or("*".to_string(), |s| s.to_string()),
+                self.day.clone().map_or("*".to_string(), |s| s.to_string()),
                 self.month
                     .clone()
-                    .map(|s| s.to_string())
-                    .unwrap_or("*".to_string()),
+                    .map_or("*".to_string(), |s| s.to_string()),
                 self.day_of_week
                     .clone()
-                    .map(|s| s.to_string())
-                    .unwrap_or("*".to_string())
+                    .map_or("*".to_string(), |s| s.to_string())
             );
             out.insert_yaml("cron", s);
             Yaml::Hash(out)
@@ -5261,7 +5511,7 @@ mod yamloom {
         #[pyo3(signature = (value, *, description=None))]
         fn new(value: StringLike, description: Option<String>) -> PyResult<Self> {
             validate_string_like(&value, ALLOWED_WORKFLOW_CALL_OUTPUT_VALUE)?;
-            Ok(Self { value, description })
+            Ok(Self { description, value })
         }
 
         fn __str__(&self) -> PyResult<String> {
@@ -5343,21 +5593,21 @@ mod yamloom {
             let mut out = Hash::new();
             let mut inputs = Hash::new();
             for (k, v) in self.inputs.iter() {
-                inputs.insert_yaml(k, v)
+                inputs.insert_yaml(k, v);
             }
             if !inputs.is_empty() {
                 out.insert_yaml("inputs", Yaml::Hash(inputs));
             }
             let mut outputs = Hash::new();
             for (k, v) in self.outputs.iter() {
-                outputs.insert_yaml(k, v)
+                outputs.insert_yaml(k, v);
             }
             if !outputs.is_empty() {
                 out.insert_yaml("outputs", Yaml::Hash(outputs));
             }
             let mut secrets = Hash::new();
             for (k, v) in self.secrets.iter() {
-                secrets.insert_yaml(k, v.maybe_as_yaml().unwrap_or(Yaml::Null))
+                secrets.insert_yaml(k, v.maybe_as_yaml().unwrap_or(Yaml::Null));
             }
             if !secrets.is_empty() {
                 out.insert_yaml("secrets", Yaml::Hash(secrets));
@@ -5400,10 +5650,11 @@ mod yamloom {
         fn get_default(&self) -> Option<Yaml> {
             match self {
                 Self::Boolean { default } => default.map(Yaml::Boolean),
-                Self::Choice { default, .. } => default.clone().map(Yaml::String),
+                Self::Choice { default, .. } | Self::String { default } => {
+                    default.clone().map(Yaml::String)
+                }
                 Self::Number { default } => default.map(Yaml::Integer),
                 Self::Environment => None, // TODO: check if environment can have a default
-                Self::String { default } => default.clone().map(Yaml::String),
             }
         }
         fn get_options(&self) -> Option<Yaml> {
@@ -6112,7 +6363,7 @@ mod yamloom {
         ///     Workflows.
         ///
         #[pyo3(signature = (path, *, overwrite = true, validate = true))]
-        fn dump(&self, path: Bound<PyAny>, overwrite: bool, validate: bool) -> PyResult<()> {
+        fn dump(&self, path: &Bound<PyAny>, overwrite: bool, validate: bool) -> PyResult<()> {
             if validate {
                 self.validate()?;
             }
@@ -6161,15 +6412,12 @@ fn yaml_to_json(yaml: &Yaml) -> PyResult<Value> {
         Yaml::Integer(v) => Value::Number(Number::from(*v)),
         Yaml::String(s) => Value::String(s.clone()),
         Yaml::Boolean(b) => Value::Bool(*b),
-        Yaml::Array(values) => Value::Array(
-            values
-                .iter()
-                .map(yaml_to_json)
-                .collect::<PyResult<_>>()?,
-        ),
+        Yaml::Array(values) => {
+            Value::Array(values.iter().map(yaml_to_json).collect::<PyResult<_>>()?)
+        }
         Yaml::Hash(hash) => {
             let mut obj = Map::new();
-            for (k, v) in hash.into_iter() {
+            for (k, v) in hash {
                 let key = if let Yaml::String(s) = k {
                     s.clone()
                 } else {
@@ -6184,7 +6432,7 @@ fn yaml_to_json(yaml: &Yaml) -> PyResult<Value> {
     })
 }
 
-static WORKFLOW_SCHEMA: Lazy<Validator> = Lazy::new(|| {
+static WORKFLOW_SCHEMA: LazyLock<Validator> = LazyLock::new(|| {
     let schema: Value = serde_json::from_str(include_str!("../schemas/github-workflow.json"))
         .expect("invalid JSON schema");
     jsonschema::options()
