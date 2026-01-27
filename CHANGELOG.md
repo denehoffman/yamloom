@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.2](https://github.com/denehoffman/yamloom/compare/yamloom-v0.5.1...yamloom-v0.5.2) (2026-01-27)
+
+
+### Features
+
+* Allow scripts to have permissions that will automatically be collected ([2b1443d](https://github.com/denehoffman/yamloom/commit/2b1443d83d9fe33855e5992882118a0e5d30528f))
+
 ## [0.5.1](https://github.com/denehoffman/yamloom/compare/yamloom-v0.5.0...yamloom-v0.5.1) (2026-01-27)
 
 
