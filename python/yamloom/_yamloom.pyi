@@ -44,6 +44,7 @@ class ActionStep(Step):
         env: Mapping[str, StringLike] | None = None,
         continue_on_error: Oboollike = None,
         timeout_minutes: Ointlike = None,
+        skip_recommended_permissions: bool = False,
         recommended_permissions: Permissions | None = None,
     ) -> _TActionStep: ...
 
@@ -71,6 +72,7 @@ def action(
     env: Mapping[str, StringLike] | None = None,
     continue_on_error: Oboollike = None,
     timeout_minutes: Ointlike = None,
+    skip_recommended_permissions: bool = False,
     recommended_permissions: Permissions | None = None,
 ) -> Step: ...
 

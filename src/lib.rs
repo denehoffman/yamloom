@@ -2595,6 +2595,7 @@ mod yamloom {
         step_action: StepAction,
         options: StepOptions,
         recommended_permissions: Option<Permissions>,
+        skip_recommended_permissions: bool,
     }
 
     #[derive(Clone)]
@@ -2710,6 +2711,7 @@ mod yamloom {
                 timeout_minutes,
             },
             recommended_permissions: None,
+            skip_recommended_permissions: false,
         })
     }
     fn make_action(
@@ -2724,6 +2726,7 @@ mod yamloom {
         env: Option<PyMap<String, StringLike>>,
         continue_on_error: Option<BoolLike>,
         timeout_minutes: Option<IntLike>,
+        skip_recommended_permissions: bool,
         recommended_permissions: Option<Permissions>,
     ) -> PyResult<Step> {
         validate_step_options(
@@ -2769,6 +2772,7 @@ mod yamloom {
                 timeout_minutes,
             },
             recommended_permissions,
+            skip_recommended_permissions,
         })
     }
 
@@ -2802,11 +2806,13 @@ mod yamloom {
     ///     Prevents the job from failing if this step fails.
     /// timeout_minutes
     ///     The maximum number of minutes to let the step run before GitHub automatically cancels it (defaults to 360 if not specified).
+    /// skip_recommended_permissions
+    ///     If True, ignore this step's recommended permissions when merging job permissions.
     /// recommended_permissions
     ///     Recommended permissions required to run this action.
     ///
     #[pyfunction]
-    #[pyo3(signature = (name, action, *, r#ref = None, with_opts = None, args = None, entrypoint = None, condition = None, id = None, env = None, continue_on_error = None, timeout_minutes = None, recommended_permissions = None))]
+    #[pyo3(signature = (name, action, *, r#ref = None, with_opts = None, args = None, entrypoint = None, condition = None, id = None, env = None, continue_on_error = None, timeout_minutes = None, skip_recommended_permissions = false, recommended_permissions = None))]
     fn action(
         name: Option<StringLike>,
         action: &str,
@@ -2819,6 +2825,7 @@ mod yamloom {
         env: Option<PyMap<String, StringLike>>,
         continue_on_error: Option<BoolLike>,
         timeout_minutes: Option<IntLike>,
+        skip_recommended_permissions: bool,
         recommended_permissions: Option<Permissions>,
     ) -> PyResult<Step> {
         if let Some(with_opts) = &with_opts {
@@ -2836,6 +2843,7 @@ mod yamloom {
             env,
             continue_on_error,
             timeout_minutes,
+            skip_recommended_permissions,
             recommended_permissions,
         )
     }
@@ -2845,7 +2853,7 @@ mod yamloom {
     #[pymethods]
     impl ActionStep {
         #[new]
-        #[pyo3(signature = (name, action, *, r#ref = None, with_opts = None, args = None, entrypoint = None, condition = None, id = None, env = None, continue_on_error = None, timeout_minutes = None, recommended_permissions = None))]
+        #[pyo3(signature = (name, action, *, r#ref = None, with_opts = None, args = None, entrypoint = None, condition = None, id = None, env = None, continue_on_error = None, timeout_minutes = None, skip_recommended_permissions = false, recommended_permissions = None))]
         fn new(
             name: Option<StringLike>,
             action: &str,
@@ -2858,6 +2866,7 @@ mod yamloom {
             env: Option<PyMap<String, StringLike>>,
             continue_on_error: Option<BoolLike>,
             timeout_minutes: Option<IntLike>,
+            skip_recommended_permissions: bool,
             recommended_permissions: Option<Permissions>,
         ) -> PyResult<(Self, Step)> {
             if let Some(with_opts) = &with_opts {
@@ -2875,6 +2884,7 @@ mod yamloom {
                 env,
                 continue_on_error,
                 timeout_minutes,
+                skip_recommended_permissions,
                 recommended_permissions,
             )?;
             Ok((ActionStep, step))
@@ -3903,6 +3913,9 @@ mod yamloom {
                 let mut saw_recommendation = false;
                 let mut merged: Option<Permissions> = None;
                 for step in steps {
+                    if step.skip_recommended_permissions {
+                        continue;
+                    }
                     if let Some(step_permissions) = &step.recommended_permissions {
                         saw_recommendation = true;
                         merged = Some(match &merged {

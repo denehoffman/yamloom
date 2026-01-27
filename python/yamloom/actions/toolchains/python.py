@@ -121,6 +121,7 @@ class SetupPython(ActionStep):
         env: Mapping[str, StringLike] | None = None,
         continue_on_error: Oboollike = None,
         timeout_minutes: Ointlike = None,
+        skip_recommended_permissions: bool = False,
     ) -> SetupPython:
         options: dict[str, object] = {
             'python-version': python_version,
@@ -154,6 +155,7 @@ class SetupPython(ActionStep):
             env=env,
             continue_on_error=continue_on_error,
             timeout_minutes=timeout_minutes,
+            skip_recommended_permissions=skip_recommended_permissions,
             recommended_permissions=cls.recommended_permissions,
         )
 
@@ -287,6 +289,7 @@ class SetupUV(ActionStep):
         env: Mapping[str, StringLike] | None = None,
         continue_on_error: Oboollike = None,
         timeout_minutes: Ointlike = None,
+        skip_recommended_permissions: bool = False,
     ) -> SetupUV:
         options: dict[str, object] = {
             'version': uv_version,
@@ -345,5 +348,6 @@ class SetupUV(ActionStep):
             env=env,
             continue_on_error=continue_on_error,
             timeout_minutes=timeout_minutes,
+            skip_recommended_permissions=skip_recommended_permissions,
             recommended_permissions=cls.recommended_permissions,
         )

@@ -117,6 +117,7 @@ class Cache(ActionStep):
         env: Mapping[str, StringLike] | None = None,
         continue_on_error: Oboollike = None,
         timeout_minutes: Ointlike = None,
+        skip_recommended_permissions: bool = False,
     ) -> Cache:
         options: dict[str, object] = {
             'key': key,
@@ -146,6 +147,7 @@ class Cache(ActionStep):
             env=env,
             continue_on_error=continue_on_error,
             timeout_minutes=timeout_minutes,
+            skip_recommended_permissions=skip_recommended_permissions,
             recommended_permissions=cls.recommended_permissions,
         )
 
@@ -219,6 +221,7 @@ class CacheSave(ActionStep):
         env: Mapping[str, StringLike] | None = None,
         continue_on_error: Oboollike = None,
         timeout_minutes: Ointlike = None,
+        skip_recommended_permissions: bool = False,
     ) -> CacheSave:
         options: dict[str, object] = {
             'key': key,
@@ -244,6 +247,7 @@ class CacheSave(ActionStep):
             env=env,
             continue_on_error=continue_on_error,
             timeout_minutes=timeout_minutes,
+            skip_recommended_permissions=skip_recommended_permissions,
             recommended_permissions=cls.recommended_permissions,
         )
 
@@ -340,6 +344,7 @@ class CacheRestore(ActionStep):
         env: Mapping[str, StringLike] | None = None,
         continue_on_error: Oboollike = None,
         timeout_minutes: Ointlike = None,
+        skip_recommended_permissions: bool = False,
     ) -> CacheRestore:
         options: dict[str, object] = {
             'key': key,
@@ -367,5 +372,6 @@ class CacheRestore(ActionStep):
             env=env,
             continue_on_error=continue_on_error,
             timeout_minutes=timeout_minutes,
+            skip_recommended_permissions=skip_recommended_permissions,
             recommended_permissions=cls.recommended_permissions,
         )

@@ -1,6 +1,6 @@
 import pytest
 
-from yamloom import Job, WorkflowInput, script
+from yamloom import Job, Permissions, WorkflowInput, action, script
 from yamloom.expressions import context
 
 
@@ -48,3 +48,32 @@ def test_workflow_call_input_default_rejects_secrets() -> None:
 
 def test_workflow_call_input_default_allows_github() -> None:
     WorkflowInput.string(default=context.github.actor)
+
+
+def test_job_merges_recommended_permissions_when_not_skipped() -> None:
+    job = Job(
+        steps=[
+            action(
+                'checkout',
+                'actions/checkout',
+                recommended_permissions=Permissions(contents='read'),
+            )
+        ],
+        runs_on='ubuntu-latest',
+    )
+    assert '\npermissions:\n  contents: read\n' in str(job)
+
+
+def test_job_skips_recommended_permissions_when_opted_out() -> None:
+    job = Job(
+        steps=[
+            action(
+                'checkout',
+                'actions/checkout',
+                skip_recommended_permissions=True,
+                recommended_permissions=Permissions(contents='read'),
+            )
+        ],
+        runs_on='ubuntu-latest',
+    )
+    assert '\npermissions:\n' not in str(job)

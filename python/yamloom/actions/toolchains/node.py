@@ -121,6 +121,7 @@ class SetupNode(ActionStep):
         env: Mapping[str, StringLike] | None = None,
         continue_on_error: Oboollike = None,
         timeout_minutes: Ointlike = None,
+        skip_recommended_permissions: bool = False,
     ) -> SetupNode:
         options: dict[str, object] = {
             'node-version': node_version,
@@ -155,6 +156,7 @@ class SetupNode(ActionStep):
             env=env,
             continue_on_error=continue_on_error,
             timeout_minutes=timeout_minutes,
+            skip_recommended_permissions=skip_recommended_permissions,
             recommended_permissions=cls.recommended_permissions,
         )
 
@@ -234,6 +236,7 @@ class SetupPnpm(ActionStep):
         env: Mapping[str, StringLike] | None = None,
         continue_on_error: Oboollike = None,
         timeout_minutes: Ointlike = None,
+        skip_recommended_permissions: bool = False,
     ) -> SetupPnpm:
         options: dict[str, object] = {
             'version': pnpm_version,
@@ -262,5 +265,6 @@ class SetupPnpm(ActionStep):
             env=env,
             continue_on_error=continue_on_error,
             timeout_minutes=timeout_minutes,
+            skip_recommended_permissions=skip_recommended_permissions,
             recommended_permissions=cls.recommended_permissions,
         )

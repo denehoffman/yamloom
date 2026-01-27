@@ -143,6 +143,7 @@ class SetupRust(ActionStep):
         env: Mapping[str, StringLike] | None = None,
         continue_on_error: Oboollike = None,
         timeout_minutes: Ointlike = None,
+        skip_recommended_permissions: bool = False,
     ) -> SetupRust:
         options: dict[str, object] = {
             'toolchain': toolchain,
@@ -189,6 +190,7 @@ class SetupRust(ActionStep):
             env=env,
             continue_on_error=continue_on_error,
             timeout_minutes=timeout_minutes,
+            skip_recommended_permissions=skip_recommended_permissions,
             recommended_permissions=cls.recommended_permissions,
         )
 
@@ -256,6 +258,7 @@ class InstallRustTool(ActionStep):
         env: Mapping[str, StringLike] | None = None,
         continue_on_error: Oboollike = None,
         timeout_minutes: Ointlike = None,
+        skip_recommended_permissions: bool = False,
     ) -> InstallRustTool:
         options: dict[str, object] = {
             'tool': ','.join(str(s) for s in tool),
@@ -282,5 +285,6 @@ class InstallRustTool(ActionStep):
             env=env,
             continue_on_error=continue_on_error,
             timeout_minutes=timeout_minutes,
+            skip_recommended_permissions=skip_recommended_permissions,
             recommended_permissions=cls.recommended_permissions,
         )

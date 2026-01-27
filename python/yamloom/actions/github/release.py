@@ -109,10 +109,6 @@ class Release(ActionStep):
     See Also
     --------
     GitHub repository: https://github.com/softprops/action-gh-release
-
-    Notes
-    -----
-    When the ``discussion_category_name`` field is used, you must also give this job the ``discussions='write'`` permission.
     """
 
     recommended_permissions = Permissions(contents='write')
@@ -163,6 +159,7 @@ class Release(ActionStep):
         env: Mapping[str, StringLike] | None = None,
         continue_on_error: Oboollike = None,
         timeout_minutes: Ointlike = None,
+        skip_recommended_permissions: bool = False,
     ) -> Release:
         options: dict[str, object] = {
             'body': body,
@@ -193,6 +190,12 @@ class Release(ActionStep):
             else:
                 name = 'Create Release'
 
+        recommended_permissions = (
+            cls.recommended_permissions
+            if discussion_category_name is None
+            else Permissions(contents='write', discussions='write')
+        )
+
         return super().__new__(
             cls,
             name,
@@ -206,7 +209,8 @@ class Release(ActionStep):
             env=env,
             continue_on_error=continue_on_error,
             timeout_minutes=timeout_minutes,
-            recommended_permissions=cls.recommended_permissions,
+            skip_recommended_permissions=skip_recommended_permissions,
+            recommended_permissions=recommended_permissions if token is None else None,
         )
 
 
@@ -293,6 +297,10 @@ class ReleasePlease(ActionStep):
     See Also
     --------
     GitHub repository: https://github.com/googleapis/release-please-action
+
+    Notes
+    -----
+    You may have to adjust repository settings to allow GitHub actions to create pull requests: ``Settings > Actions > General``
     """
 
     recommended_permissions = Permissions(
@@ -439,6 +447,7 @@ class ReleasePlease(ActionStep):
         env: Mapping[str, StringLike] | None = None,
         continue_on_error: Oboollike = None,
         timeout_minutes: Ointlike = None,
+        skip_recommended_permissions: bool = False,
     ) -> ReleasePlease:
         options: dict[str, object] = {
             'token': token,
@@ -478,5 +487,8 @@ class ReleasePlease(ActionStep):
             env=env,
             continue_on_error=continue_on_error,
             timeout_minutes=timeout_minutes,
-            recommended_permissions=cls.recommended_permissions,
+            skip_recommended_permissions=skip_recommended_permissions,
+            recommended_permissions=cls.recommended_permissions
+            if token is None
+            else None,
         )

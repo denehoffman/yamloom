@@ -107,6 +107,7 @@ class SetupRuby(ActionStep):
         env: Mapping[str, StringLike] | None = None,
         continue_on_error: Oboollike = None,
         timeout_minutes: Ointlike = None,
+        skip_recommended_permissions: bool = False,
     ) -> SetupRuby:
         options: dict[str, object] = {
             'ruby-version': ruby_version,
@@ -139,5 +140,6 @@ class SetupRuby(ActionStep):
             env=env,
             continue_on_error=continue_on_error,
             timeout_minutes=timeout_minutes,
+            skip_recommended_permissions=skip_recommended_permissions,
             recommended_permissions=cls.recommended_permissions,
         )
