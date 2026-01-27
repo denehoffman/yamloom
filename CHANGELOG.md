@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.5.0](https://github.com/denehoffman/yamloom/compare/yamloom-v0.4.1...yamloom-v0.5.0) (2026-01-27)
+
+
+### ⚠ BREAKING CHANGES
+
+* This renames all actions to CapWords/UpperCamelCase, so it breaks pretty much every workflow
+
+### Features
+
+* Add option to skip recommended permissions and add logic to skip them anyway if not using GITHUB_TOKEN ([e9a6219](https://github.com/denehoffman/yamloom/commit/e9a6219528e1028e01d1acd1758456d64ce993ed))
+* Consolidate actions and outputs into single classes rather than functions, add recommended permissions which automatically accumulate per job ([7e68334](https://github.com/denehoffman/yamloom/commit/7e683346ccf1896dfea28eccc3117829bb4dc2e7))
+
+
+### Bug Fixes
+
+* Rename SetupUv to SetupUV ([8b96649](https://github.com/denehoffman/yamloom/commit/8b9664979726f632ea6939aa751e0f27240addf3))
+
 ## [0.4.1](https://github.com/denehoffman/yamloom/compare/yamloom-v0.4.0...yamloom-v0.4.1) (2026-01-26)
 
 
