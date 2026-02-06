@@ -134,3 +134,19 @@ def test_script_preserves_intentional_escaped_control_sequences() -> None:
     job_yaml = str(job)
     assert '\n  - run: |' in job_yaml or '\n  - run: |-' in job_yaml
     assert 'printf "%s" "a\\nb\\r"' in job_yaml
+
+
+def test_script_expression_line_escapes_control_chars_without_block_scalar() -> None:
+    job = Job(
+        steps=[
+            script(
+                f'printf "%s\n" {context.matrix.platform.python_versions.as_array().join(" ")} >> version.txt',
+            )
+        ],
+        runs_on='ubuntu-latest',
+    )
+    job_yaml = str(job)
+    assert (
+        '\n  - run: printf "%s\\n" ${{ join(matrix.platform.python_versions, \' \') }} >> version.txt'
+        in job_yaml
+    )
