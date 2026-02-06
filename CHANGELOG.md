@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.3](https://github.com/denehoffman/yamloom/compare/yamloom-v0.5.2...yamloom-v0.5.3) (2026-02-06)
+
+
+### Bug Fixes
+
+* Change output types to strings ([e80c2b8](https://github.com/denehoffman/yamloom/commit/e80c2b848d2c4fddfde59dd4ba7474a56f1fdc96))
+* **script:** Update parsing to parse each line separately before joining with newlines ([16f6856](https://github.com/denehoffman/yamloom/commit/16f685668eae4663b63b24269d081adab597545b))
+
 ## [0.5.2](https://github.com/denehoffman/yamloom/compare/yamloom-v0.5.1...yamloom-v0.5.2) (2026-01-27)
 
 
