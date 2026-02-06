@@ -6,7 +6,7 @@ develop:
 
 test:
     cargo test
-    uvx --with . pytest
+    uvx --refresh --with . pytest
 
 check:
     cargo clippy
