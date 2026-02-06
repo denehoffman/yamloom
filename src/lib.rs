@@ -2561,7 +2561,7 @@ mod yamloom {
 
     #[derive(Clone)]
     enum StepAction {
-        Run(StringLike),
+        Run(Vec<StringLike>),
         Action {
             uses: String,
             with: Option<WithArgs>,
@@ -2580,9 +2580,19 @@ mod yamloom {
                 StepAction::Action { with, .. } => with.clone(),
             }
         }
-        fn run(&self) -> Option<&StringLike> {
+        fn run(&self) -> Option<Yaml> {
             match self {
-                StepAction::Run(script) => Some(script),
+                StepAction::Run(script) => {
+                    let lines = script
+                        .iter()
+                        .map(|line| match line {
+                            Either::A(expr) => expr.as_expression_string(),
+                            Either::B(raw) => raw.clone(),
+                        })
+                        .collect::<Vec<String>>()
+                        .join("\n");
+                    Some(Yaml::String(lines))
+                }
                 StepAction::Action { .. } => None,
             }
         }
@@ -2632,18 +2642,6 @@ mod yamloom {
             Yaml::Hash(entries)
         }
     }
-    fn collect_script_lines(script: Vec<StringLike>) -> StringLike {
-        let lines = script
-            .into_iter()
-            .map(|line| match line {
-                Either::A(expr) => expr.as_expression_string(),
-                Either::B(raw) => raw,
-            })
-            .collect::<Vec<String>>()
-            .join("\n");
-        Either::B(lines)
-    }
-
     /// Generate a `Step` from a list of shell commands.
     ///
     /// Parameters
@@ -2701,7 +2699,6 @@ mod yamloom {
             continue_on_error.as_ref(),
             timeout_minutes.as_ref(),
         )?;
-        let script = collect_script_lines(script);
         Ok(Step {
             name,
             step_action: StepAction::Run(script),
