@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.4](https://github.com/denehoffman/yamloom/compare/yamloom-v0.5.3...yamloom-v0.5.4) (2026-02-06)
+
+
+### Bug Fixes
+
+* **script:** Correct escaping behavior for script strings ([462b949](https://github.com/denehoffman/yamloom/commit/462b949a67327ae586255ef0ab5600699cf6af91))
+
 ## [0.5.3](https://github.com/denehoffman/yamloom/compare/yamloom-v0.5.2...yamloom-v0.5.3) (2026-02-06)
 
 
