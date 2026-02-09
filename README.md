@@ -1,5 +1,13 @@
 # yamloom
 
+![PyPI - Version](https://img.shields.io/pypi/v/yamloom?style=for-the-badge&logo=python&logoColor=yellow&color=blue)
+![GitHub last commit](https://img.shields.io/github/last-commit/denehoffman/yamloom?style=for-the-badge&logo=github)
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/denehoffman/yamloom/release.yml?style=for-the-badge)
+![GitHub License](https://img.shields.io/github/license/denehoffman/yamloom?style=for-the-badge)
+
+
+
+
 `yamloom` is a Python library for generating GitHub Actions workflow YAML with a Pythonic API. The core implementation is a Rust extension module built with PyO3, with Python helpers layered on top.
 
 ## Installation
