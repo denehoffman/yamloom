@@ -244,7 +244,7 @@ Install and run the hooks:
 ```yaml
 
   - repo: https://github.com/denehoffman/yamloom
-    rev: v0.1.0
+    rev: v0.5.5
     hooks:
       - id : yamloom-sync
       # args: ["--file", "path/to/workflow_builder.py"] # optional
