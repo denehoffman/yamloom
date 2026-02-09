@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.5](https://github.com/denehoffman/yamloom/compare/yamloom-v0.5.4...yamloom-v0.5.5) (2026-02-09)
+
+
+### Bug Fixes
+
+* **SetupMPI:** Use the correct action path for mpi4py/setup-mpi ([14bf133](https://github.com/denehoffman/yamloom/commit/14bf1334406091f222e47cc20158dabad903e0d1))
+
 ## [0.5.4](https://github.com/denehoffman/yamloom/compare/yamloom-v0.5.3...yamloom-v0.5.4) (2026-02-06)
 
 
