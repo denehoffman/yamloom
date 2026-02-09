@@ -450,7 +450,7 @@ class ReleasePlease(ActionStep):
         skip_recommended_permissions: bool = False,
     ) -> ReleasePlease:
         options: dict[str, object] = {
-            'token': token,
+            'token': token if token is not None else str(context.secrets.github_token),
             'release-type': release_type,
             'path': path,
             'target-branch': target_branch,
