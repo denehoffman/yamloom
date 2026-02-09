@@ -5,16 +5,18 @@
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/denehoffman/yamloom/release.yml?style=for-the-badge)
 ![GitHub License](https://img.shields.io/github/license/denehoffman/yamloom?style=for-the-badge)
 
-
-
-
-`yamloom` is a Python library for generating GitHub Actions workflow YAML with a Pythonic API. The core implementation is a Rust extension module built with PyO3, with Python helpers layered on top.
+***a library for generating GitHub Actions workflows from Python code***
 
 ## Installation
 
 ```bash
+pip install yamloom
+```
+or
+```bash
 uv pip install yamloom
 ```
+if you use `uv`.
 
 ## Usage
 
@@ -211,7 +213,7 @@ GitHub defines a syntax for expressions which are enclosed in `${{ ... }}` delim
 
 ### Custom actions
 
-To implement a custom action, define a class that subclasses ``ActionStep`` and implement ``__new__`` to call ``super().__new__`` with the action name and options. Because it's all just code, it's fairly easy to distribute third-party actions as Python libraries (or by extending existing Python libraries). This repository is also open to contributions, and I plan to make it host a more curated set of essential actions that can be used with most important workflows.
+To implement a custom action, define a class that subclasses ``ActionStep`` and implement ``__new__`` to call ``super().__new__``[^1] with the action name and options. Because it's all just code, it's fairly easy to distribute third-party actions as Python libraries (or by extending existing Python libraries). This repository is also open to contributions, and I plan to make it host a more curated set of essential actions that can be used with most important workflows.
 
 ## CLI Usage
 
@@ -275,3 +277,5 @@ This could have been implemented in pure Python (the original draft was), I'll a
 - Docstrings (I've been a bit lazy on this)
 - Tests
 - More custom actions
+
+[^1]: `__new__` is used instead of `__init__` due to the way PyO3 constructs classes from Rust, but a future update may change this behavior since there might be a way around it in the latest versions of PyO3.
