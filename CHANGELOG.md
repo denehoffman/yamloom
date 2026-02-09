@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.6](https://github.com/denehoffman/yamloom/compare/yamloom-v0.5.5...yamloom-v0.5.6) (2026-02-09)
+
+
+### Bug Fixes
+
+* **release-please:** Use GITHUB_TOKEN by default if no token is provided ([97174a5](https://github.com/denehoffman/yamloom/commit/97174a554b9511b2df0dc8e8f46bdf70bd136c98))
+
 ## [0.5.5](https://github.com/denehoffman/yamloom/compare/yamloom-v0.5.4...yamloom-v0.5.5) (2026-02-09)
 
 
